@@ -95,7 +95,7 @@ export const checkAuth =
       }
 
       req.user = {
-        userId: verifyToken.data.id,
+        id: verifyToken.data.id,
         role: verifyToken.data.role,
         email: verifyToken.data.email,
       };

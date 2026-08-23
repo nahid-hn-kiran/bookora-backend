@@ -1,15 +1,14 @@
 import status from "http-status";
-import AppError from "../../errorHelpers/appError";
-import { ICreateBooking, IUpdateBookingStatus } from "./booking.interface";
 import { prisma } from "../../../lib/prisma";
+import AppError from "../../errorHelpers/appError";
+
+import { ICreateBooking, IUpdateBookingStatus } from "./booking.interface";
 
 const generateBookingNumber = () => {
   const date = new Date();
 
   const year = date.getFullYear();
-
   const month = String(date.getMonth() + 1).padStart(2, "0");
-
   const day = String(date.getDate()).padStart(2, "0");
 
   const random = Math.floor(100000 + Math.random() * 900000);
@@ -35,28 +34,13 @@ const createBooking = async (userId: string, payload: ICreateBooking) => {
     );
   }
 
-  const room = await prisma.room.findFirst({
-    where: {
-      id: payload.roomId,
-      isDeleted: false,
-      status: "ACTIVE",
-    },
-  });
-
-  if (!room) {
-    throw new AppError(status.NOT_FOUND, "Room not found or inactive.");
-  }
-
-  if (payload.guestCount > room.capacity) {
-    throw new AppError(
-      status.BAD_REQUEST,
-      `This room can accommodate a maximum of ${room.capacity} guests.`,
-    );
-  }
-
   const timeSlot = await prisma.timeSlot.findUnique({
     where: {
       id: payload.timeSlotId,
+    },
+
+    include: {
+      room: true,
     },
   });
 
@@ -64,33 +48,37 @@ const createBooking = async (userId: string, payload: ICreateBooking) => {
     throw new AppError(status.NOT_FOUND, "Time slot not found.");
   }
 
-  if (timeSlot.roomId !== room.id) {
+  if (timeSlot.room.isDeleted) {
     throw new AppError(
-      status.BAD_REQUEST,
-      "The selected time slot does not belong to this room.",
+      status.NOT_FOUND,
+      "The room for this time slot is no longer available.",
     );
   }
 
-  const bookingDate = new Date(payload.bookingDate);
-
-  if (Number.isNaN(bookingDate.getTime())) {
-    throw new AppError(status.BAD_REQUEST, "Invalid booking date.");
-  }
-
-  if (bookingDate < new Date()) {
+  if (timeSlot.room.status !== "ACTIVE") {
     throw new AppError(
       status.BAD_REQUEST,
-      "You cannot create a booking for a past date.",
+      "The room for this time slot is currently unavailable.",
     );
   }
 
-  const existingBooking = await prisma.booking.findFirst({
+  if (payload.guestCount > timeSlot.room.capacity) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      `This room can accommodate a maximum of ${timeSlot.room.capacity} guests.`,
+    );
+  }
+
+  if (timeSlot.startTime <= new Date()) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "This time slot has already started or passed.",
+    );
+  }
+
+  const existingBooking = await prisma.booking.findUnique({
     where: {
       timeSlotId: payload.timeSlotId,
-      bookingDate,
-      status: {
-        not: "CANCELLED",
-      },
     },
   });
 
@@ -98,22 +86,16 @@ const createBooking = async (userId: string, payload: ICreateBooking) => {
     throw new AppError(status.CONFLICT, "This time slot is already booked.");
   }
 
-  const totalAmount = room.price.mul(payload.guestCount);
-
-  const bookingNumber = generateBookingNumber();
+  const totalAmount = timeSlot.room.price;
 
   const booking = await prisma.$transaction(async (transaction) => {
     const createdBooking = await transaction.booking.create({
       data: {
-        bookingNumber,
+        bookingNumber: generateBookingNumber(),
 
         userId,
 
-        roomId: room.id,
-
         timeSlotId: timeSlot.id,
-
-        bookingDate,
 
         guestCount: payload.guestCount,
 
@@ -125,13 +107,21 @@ const createBooking = async (userId: string, payload: ICreateBooking) => {
       },
 
       include: {
-        room: true,
-        timeSlot: true,
         user: {
           select: {
             id: true,
             name: true,
             email: true,
+          },
+        },
+
+        timeSlot: {
+          include: {
+            room: {
+              include: {
+                venue: true,
+              },
+            },
           },
         },
       },
@@ -150,13 +140,15 @@ const getMyBookings = async (userId: string) => {
     },
 
     include: {
-      room: {
+      timeSlot: {
         include: {
-          venue: true,
+          room: {
+            include: {
+              venue: true,
+            },
+          },
         },
       },
-
-      timeSlot: true,
 
       payment: true,
     },
@@ -177,13 +169,15 @@ const getBookingById = async (bookingId: string, userId: string) => {
     },
 
     include: {
-      room: {
+      timeSlot: {
         include: {
-          venue: true,
+          room: {
+            include: {
+              venue: true,
+            },
+          },
         },
       },
-
-      timeSlot: true,
 
       payment: true,
     },
@@ -207,13 +201,15 @@ const getAllBookings = async () => {
         },
       },
 
-      room: {
+      timeSlot: {
         include: {
-          venue: true,
+          room: {
+            include: {
+              venue: true,
+            },
+          },
         },
       },
-
-      timeSlot: true,
 
       payment: true,
     },
@@ -259,8 +255,12 @@ const cancelBooking = async (bookingId: string, userId: string) => {
     },
 
     include: {
-      room: true,
-      timeSlot: true,
+      timeSlot: {
+        include: {
+          room: true,
+        },
+      },
+
       payment: true,
     },
   });
@@ -314,9 +314,11 @@ const updateBookingStatus = async (
         },
       },
 
-      room: true,
-
-      timeSlot: true,
+      timeSlot: {
+        include: {
+          room: true,
+        },
+      },
 
       payment: true,
     },

@@ -1,7 +1,5 @@
 export interface ICreateBooking {
-  roomId: string;
   timeSlotId: string;
-  bookingDate: string;
   guestCount: number;
   notes?: string;
 }

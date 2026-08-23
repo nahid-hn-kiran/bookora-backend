@@ -1,20 +1,20 @@
 model TimeSlot {
-  id String @id @default(uuid(7))
+    id String @id @default(uuid(7))
 
-  roomId String
-  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+    roomId String
 
-  date      DateTime
-  startTime DateTime
-  endTime   DateTime
+    date      DateTime
+    startTime DateTime
+    endTime   DateTime
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
-  bookings Booking[]
+    room Room @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  @@unique([roomId, date, startTime])
-  @@index([roomId])
-  @@index([date])
-  @@map("time_slots")
+    bookings Booking[]
+
+    @@index([roomId])
+    @@index([date])
+    @@map("time_slots")
 }

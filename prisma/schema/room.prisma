@@ -16,7 +16,6 @@ model Room {
   venue   Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
 
   timeSlots TimeSlot[]
-  bookings  Booking[]
 
   isDeleted Boolean   @default(false)
   deletedAt DateTime?

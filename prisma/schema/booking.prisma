@@ -1,35 +1,28 @@
 model Booking {
-  id            String @id @default(uuid(7))
-  bookingNumber String @unique
+    id            String @id @default(uuid(7))
+    bookingNumber String @unique
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  roomId String
-  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+    timeSlotId String
+    timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id], onDelete: Restrict)
 
-  timeSlotId String
-  timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id], onDelete: Restrict)
+    guestCount Int
 
-  bookingDate DateTime
-  guestCount  Int
+    totalAmount Decimal @db.Decimal(10, 2)
 
-  totalAmount Decimal @db.Decimal(10, 2)
+    status BookingStatus @default(PENDING)
 
-  status BookingStatus @default(PENDING)
+    notes String?
 
-  notes String?
+    payment Payment?
 
-  payment Payment?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([timeSlotId, bookingDate])
-  @@index([userId])
-  @@index([roomId])
-  @@index([timeSlotId])
-  @@index([bookingDate])
-  @@index([status])
-  @@map("bookings")
+    @@unique([timeSlotId])
+    @@index([userId])
+    @@index([status])
+    @@map("bookings")
 }

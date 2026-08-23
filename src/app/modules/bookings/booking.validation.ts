@@ -1,11 +1,7 @@
 import { z } from "zod";
 
 export const createBookingValidationSchema = z.object({
-  roomId: z.string().min(1, "Room ID is required"),
-
   timeSlotId: z.string().min(1, "Time slot ID is required"),
-
-  bookingDate: z.string().datetime("Booking date must be a valid ISO datetime"),
 
   guestCount: z
     .number()
