@@ -1,0 +1,35 @@
+model Booking {
+  id            String @id @default(uuid(7))
+  bookingNumber String @unique
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  timeSlotId String
+  timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id], onDelete: Restrict)
+
+  bookingDate DateTime
+  guestCount  Int
+
+  totalAmount Decimal @db.Decimal(10, 2)
+
+  status BookingStatus @default(PENDING)
+
+  notes String?
+
+  payment Payment?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([timeSlotId, bookingDate])
+  @@index([userId])
+  @@index([roomId])
+  @@index([timeSlotId])
+  @@index([bookingDate])
+  @@index([status])
+  @@map("bookings")
+}

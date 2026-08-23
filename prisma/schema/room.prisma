@@ -1,0 +1,31 @@
+model Room {
+  id          String  @id @default(uuid(7))
+  name        String
+  description String?
+
+  capacity   Int
+  price      Decimal @db.Decimal(10, 2)
+  duration   Int
+  difficulty String?
+
+  image String?
+
+  status RoomStatus @default(ACTIVE)
+
+  venueId String
+  venue   Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  timeSlots TimeSlot[]
+  bookings  Booking[]
+
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([venueId])
+  @@index([status])
+  @@index([isDeleted])
+  @@map("rooms")
+}
