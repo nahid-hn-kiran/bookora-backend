@@ -46,10 +46,26 @@ const createPaymentIntent = async (userId: string, bookingId: string) => {
     );
   }
 
-  /*
-   * If a PaymentIntent already exists, return it instead
-   * of creating another one.
-   */
+  if (booking.payment?.checkoutSessionId) {
+    const existingSession = await stripe.checkout.sessions.retrieve(
+      booking.payment.checkoutSessionId,
+    );
+
+    if (existingSession.status === "open") {
+      throw new AppError(
+        status.BAD_REQUEST,
+        "A Checkout Session is already active for this booking.",
+      );
+    }
+
+    if (existingSession.status === "complete") {
+      throw new AppError(
+        status.BAD_REQUEST,
+        "This booking payment has already been completed.",
+      );
+    }
+  }
+
   if (booking.payment?.paymentIntentId) {
     const existingPaymentIntent = await stripe.paymentIntents.retrieve(
       booking.payment.paymentIntentId,
@@ -61,12 +77,6 @@ const createPaymentIntent = async (userId: string, bookingId: string) => {
     };
   }
 
-  /*
-   * Stripe expects the amount in the smallest currency unit.
-   *
-   * Example:
-   * $120.00 → 12000 cents
-   */
   const amountInSmallestUnit = Number(booking.totalAmount) * 100;
 
   const paymentIntent = await stripe.paymentIntents.create({
@@ -142,6 +152,13 @@ const createCheckoutSession = async (userId: string, bookingId: string) => {
     );
   }
 
+  if (booking.status === "CONFIRMED") {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "This booking has already been confirmed.",
+    );
+  }
+
   if (booking.payment?.status === "PAID") {
     throw new AppError(
       status.BAD_REQUEST,
@@ -149,19 +166,22 @@ const createCheckoutSession = async (userId: string, bookingId: string) => {
     );
   }
 
-  /*
-   * If we already have a Checkout Session,
-   * don't unnecessarily create another one.
-   */
-  if (booking.payment?.paymentIntentId) {
-    const paymentIntent = await stripe.paymentIntents.retrieve(
-      booking.payment.paymentIntentId,
+  if (booking.payment?.checkoutSessionId) {
+    const existingSession = await stripe.checkout.sessions.retrieve(
+      booking.payment.checkoutSessionId,
     );
 
-    if (paymentIntent.status === "succeeded") {
+    if (existingSession.status === "open") {
+      return {
+        sessionId: existingSession.id,
+        url: existingSession.url,
+      };
+    }
+
+    if (existingSession.status === "complete") {
       throw new AppError(
         status.BAD_REQUEST,
-        "This booking has already been paid.",
+        "This booking payment has already been completed.",
       );
     }
   }
@@ -208,6 +228,32 @@ const createCheckoutSession = async (userId: string, bookingId: string) => {
       process.env.STRIPE_CANCEL_URL ||
       "http://localhost:3000/payment/cancelled",
   });
+
+  if (booking.payment) {
+    await prisma.payment.update({
+      where: {
+        id: booking.payment.id,
+      },
+
+      data: {
+        checkoutSessionId: session.id,
+      },
+    });
+  } else {
+    await prisma.payment.create({
+      data: {
+        bookingId: booking.id,
+
+        amount: booking.totalAmount,
+
+        method: "STRIPE",
+
+        status: "PENDING",
+
+        checkoutSessionId: session.id,
+      },
+    });
+  }
 
   return {
     sessionId: session.id,

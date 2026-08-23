@@ -327,17 +327,19 @@ const updateBookingStatus = async (
     throw new AppError(status.NOT_FOUND, "Booking not found.");
   }
 
-  if (booking.status === "CANCELLED") {
-    throw new AppError(
-      status.BAD_REQUEST,
-      "A cancelled booking cannot be updated.",
-    );
-  }
+  const allowedTransitions: Record<string, string[]> = {
+    PENDING: ["CONFIRMED", "CANCELLED"],
+    CONFIRMED: ["COMPLETED", "CANCELLED"],
+    COMPLETED: [],
+    CANCELLED: [],
+  };
 
-  if (booking.status === "COMPLETED" && payload.status !== "COMPLETED") {
+  const allowedStatuses = allowedTransitions[booking.status];
+
+  if (!allowedStatuses.includes(payload.status)) {
     throw new AppError(
       status.BAD_REQUEST,
-      "A completed booking cannot change its status.",
+      `Cannot change booking status from ${booking.status} to ${payload.status}.`,
     );
   }
 

@@ -9,8 +9,9 @@ model Payment {
     method PaymentMethod
     status PaymentStatus @default(PENDING)
 
-    transactionId   String?
-    paymentIntentId String? @unique
+    transactionId     String?
+    paymentIntentId   String? @unique
+    checkoutSessionId String?
 
     paidAt DateTime?
 

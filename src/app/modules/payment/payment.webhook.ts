@@ -100,6 +100,7 @@ const handlePaymentSucceeded = async (paymentIntent: Stripe.PaymentIntent) => {
         data: {
           status: "PAID",
           paidAt: new Date(),
+          paymentIntentId: paymentIntent.id,
         },
       });
     } else {
