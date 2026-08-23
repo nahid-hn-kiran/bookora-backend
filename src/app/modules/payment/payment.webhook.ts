@@ -68,16 +68,111 @@ const handlePaymentSucceeded = async (paymentIntent: Stripe.PaymentIntent) => {
     return;
   }
 
+  const booking = await prisma.booking.findUnique({
+    where: {
+      id: bookingId,
+    },
+  });
+
+  if (!booking) {
+    console.error("Booking not found:", bookingId);
+
+    return;
+  }
+
+  if (booking.status !== "PENDING") {
+    console.log(
+      `Ignoring successful payment for booking ${booking.id} because its status is ${booking.status}.`,
+    );
+
+    return;
+  }
+
+  if (booking.expiresAt && booking.expiresAt <= new Date()) {
+    console.log(
+      `Booking ${booking.id} has expired. Refunding successful payment.`,
+    );
+
+    try {
+      await stripe.refunds.create({
+        payment_intent: paymentIntent.id,
+      });
+    } catch (error) {
+      console.error(
+        `Failed to refund payment for expired booking ${booking.id}:`,
+        error,
+      );
+
+      return;
+    }
+
+    await prisma.$transaction(async (transaction) => {
+      const currentBooking = await transaction.booking.findUnique({
+        where: {
+          id: booking.id,
+        },
+      });
+
+      if (!currentBooking || currentBooking.status !== "PENDING") {
+        return;
+      }
+
+      const existingPayment = await transaction.payment.findUnique({
+        where: {
+          paymentIntentId: paymentIntent.id,
+        },
+      });
+
+      if (existingPayment) {
+        await transaction.payment.update({
+          where: {
+            id: existingPayment.id,
+          },
+
+          data: {
+            status: "REFUNDED",
+          },
+        });
+      } else {
+        await transaction.payment.create({
+          data: {
+            bookingId: booking.id,
+
+            amount: booking.totalAmount,
+
+            method: "STRIPE",
+
+            status: "REFUNDED",
+
+            paymentIntentId: paymentIntent.id,
+
+            paidAt: new Date(),
+          },
+        });
+      }
+
+      await transaction.booking.update({
+        where: {
+          id: booking.id,
+        },
+
+        data: {
+          status: "CANCELLED",
+        },
+      });
+    });
+
+    return;
+  }
+
   await prisma.$transaction(async (transaction) => {
-    const booking = await transaction.booking.findUnique({
+    const currentBooking = await transaction.booking.findUnique({
       where: {
-        id: bookingId,
+        id: booking.id,
       },
     });
 
-    if (!booking) {
-      console.error("Booking not found:", bookingId);
-
+    if (!currentBooking || currentBooking.status !== "PENDING") {
       return;
     }
 
@@ -99,16 +194,18 @@ const handlePaymentSucceeded = async (paymentIntent: Stripe.PaymentIntent) => {
 
         data: {
           status: "PAID",
+
           paidAt: new Date(),
+
           paymentIntentId: paymentIntent.id,
         },
       });
     } else {
       await transaction.payment.create({
         data: {
-          bookingId: booking.id,
+          bookingId: currentBooking.id,
 
-          amount: booking.totalAmount,
+          amount: currentBooking.totalAmount,
 
           method: "STRIPE",
 
@@ -121,17 +218,15 @@ const handlePaymentSucceeded = async (paymentIntent: Stripe.PaymentIntent) => {
       });
     }
 
-    if (booking.status !== "CONFIRMED") {
-      await transaction.booking.update({
-        where: {
-          id: booking.id,
-        },
+    await transaction.booking.update({
+      where: {
+        id: currentBooking.id,
+      },
 
-        data: {
-          status: "CONFIRMED",
-        },
-      });
-    }
+      data: {
+        status: "CONFIRMED",
+      },
+    });
   });
 };
 

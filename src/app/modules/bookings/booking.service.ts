@@ -110,6 +110,7 @@ const createBooking = async (userId: string, payload: ICreateBooking) => {
         status: "PENDING",
 
         notes: payload.notes,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
       },
 
       include: {

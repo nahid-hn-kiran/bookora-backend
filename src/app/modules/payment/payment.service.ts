@@ -39,6 +39,13 @@ const createPaymentIntent = async (userId: string, bookingId: string) => {
     );
   }
 
+  if (booking.expiresAt && booking.expiresAt <= new Date()) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "This booking has expired. Please create a new booking.",
+    );
+  }
+
   if (booking.payment?.status === "PAID") {
     throw new AppError(
       status.BAD_REQUEST,
@@ -149,6 +156,13 @@ const createCheckoutSession = async (userId: string, bookingId: string) => {
     throw new AppError(
       status.BAD_REQUEST,
       "This booking has already been completed.",
+    );
+  }
+
+  if (booking.expiresAt && booking.expiresAt <= new Date()) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "This booking has expired. Please create a new booking.",
     );
   }
 
