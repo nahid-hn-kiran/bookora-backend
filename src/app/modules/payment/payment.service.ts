@@ -39,6 +39,13 @@ const createPaymentIntent = async (userId: string, bookingId: string) => {
     );
   }
 
+  if (booking.status === "CONFIRMED") {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "This booking has already been confirmed.",
+    );
+  }
+
   if (booking.expiresAt && booking.expiresAt <= new Date()) {
     throw new AppError(
       status.BAD_REQUEST,
@@ -53,41 +60,54 @@ const createPaymentIntent = async (userId: string, bookingId: string) => {
     );
   }
 
-  if (booking.payment?.checkoutSessionId) {
-    const existingSession = await stripe.checkout.sessions.retrieve(
-      booking.payment.checkoutSessionId,
-    );
-
-    if (existingSession.status === "open") {
-      throw new AppError(
-        status.BAD_REQUEST,
-        "A Checkout Session is already active for this booking.",
-      );
-    }
-
-    if (existingSession.status === "complete") {
-      throw new AppError(
-        status.BAD_REQUEST,
-        "This booking payment has already been completed.",
-      );
-    }
-  }
-
+  /*
+   * If a PaymentIntent already exists,
+   * check its current Stripe status before deciding
+   * whether we can reuse it.
+   */
   if (booking.payment?.paymentIntentId) {
     const existingPaymentIntent = await stripe.paymentIntents.retrieve(
       booking.payment.paymentIntentId,
     );
 
-    return {
-      clientSecret: existingPaymentIntent.client_secret,
-      paymentIntentId: existingPaymentIntent.id,
-    };
+    /*
+     * Payment already succeeded on Stripe.
+     *
+     * The webhook may still be processing, so don't
+     * create another PaymentIntent.
+     */
+    if (existingPaymentIntent.status === "succeeded") {
+      throw new AppError(
+        status.BAD_REQUEST,
+        "This payment has already been completed.",
+      );
+    }
+
+    /*
+     * These PaymentIntent states can still be used
+     * to complete the payment.
+     */
+    if (
+      existingPaymentIntent.status === "requires_payment_method" ||
+      existingPaymentIntent.status === "requires_confirmation" ||
+      existingPaymentIntent.status === "requires_action"
+    ) {
+      return {
+        clientSecret: existingPaymentIntent.client_secret,
+        paymentIntentId: existingPaymentIntent.id,
+      };
+    }
+
+    /*
+     * If Stripe has cancelled the old PaymentIntent,
+     * we'll create a new one below.
+     */
   }
 
-  const amountInSmallestUnit = Number(booking.totalAmount) * 100;
+  const amountInSmallestUnit = Math.round(Number(booking.totalAmount) * 100);
 
   const paymentIntent = await stripe.paymentIntents.create({
-    amount: Math.round(amountInSmallestUnit),
+    amount: amountInSmallestUnit,
 
     currency: process.env.STRIPE_CURRENCY || "usd",
 
@@ -103,19 +123,38 @@ const createPaymentIntent = async (userId: string, bookingId: string) => {
     description: `Bookora booking ${booking.bookingNumber}`,
   });
 
-  await prisma.payment.create({
-    data: {
-      bookingId: booking.id,
+  /*
+   * If a Payment record already exists, update it
+   * with the new PaymentIntent.
+   *
+   * Otherwise create a new Payment record.
+   */
+  if (booking.payment) {
+    await prisma.payment.update({
+      where: {
+        id: booking.payment.id,
+      },
 
-      amount: booking.totalAmount,
+      data: {
+        paymentIntentId: paymentIntent.id,
+        status: "PENDING",
+      },
+    });
+  } else {
+    await prisma.payment.create({
+      data: {
+        bookingId: booking.id,
 
-      method: "STRIPE",
+        amount: booking.totalAmount,
 
-      status: "PENDING",
+        method: "STRIPE",
 
-      paymentIntentId: paymentIntent.id,
-    },
-  });
+        status: "PENDING",
+
+        paymentIntentId: paymentIntent.id,
+      },
+    });
+  }
 
   return {
     clientSecret: paymentIntent.client_secret,
@@ -159,17 +198,17 @@ const createCheckoutSession = async (userId: string, bookingId: string) => {
     );
   }
 
-  if (booking.expiresAt && booking.expiresAt <= new Date()) {
-    throw new AppError(
-      status.BAD_REQUEST,
-      "This booking has expired. Please create a new booking.",
-    );
-  }
-
   if (booking.status === "CONFIRMED") {
     throw new AppError(
       status.BAD_REQUEST,
       "This booking has already been confirmed.",
+    );
+  }
+
+  if (booking.expiresAt && booking.expiresAt <= new Date()) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "This booking has expired. Please create a new booking.",
     );
   }
 
@@ -180,11 +219,18 @@ const createCheckoutSession = async (userId: string, bookingId: string) => {
     );
   }
 
+  /*
+   * If there is an existing Checkout Session,
+   * check whether it is still usable.
+   */
   if (booking.payment?.checkoutSessionId) {
     const existingSession = await stripe.checkout.sessions.retrieve(
       booking.payment.checkoutSessionId,
     );
 
+    /*
+     * User already has an active checkout page.
+     */
     if (existingSession.status === "open") {
       return {
         sessionId: existingSession.id,
@@ -192,12 +238,20 @@ const createCheckoutSession = async (userId: string, bookingId: string) => {
       };
     }
 
+    /*
+     * Checkout was completed.
+     */
     if (existingSession.status === "complete") {
       throw new AppError(
         status.BAD_REQUEST,
         "This booking payment has already been completed.",
       );
     }
+
+    /*
+     * If the session has expired, we simply create
+     * a new Checkout Session below.
+     */
   }
 
   const amountInSmallestUnit = Math.round(Number(booking.totalAmount) * 100);
@@ -243,6 +297,9 @@ const createCheckoutSession = async (userId: string, bookingId: string) => {
       "http://localhost:3000/payment/cancelled",
   });
 
+  /*
+   * Update the existing Payment record or create one.
+   */
   if (booking.payment) {
     await prisma.payment.update({
       where: {
@@ -251,6 +308,11 @@ const createCheckoutSession = async (userId: string, bookingId: string) => {
 
       data: {
         checkoutSessionId: session.id,
+
+        /*
+         * A new checkout attempt is pending.
+         */
+        status: "PENDING",
       },
     });
   } else {

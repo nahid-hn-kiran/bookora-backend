@@ -21,7 +21,7 @@ router.post(
 
 router.post(
   "/create-checkout-session",
-  checkAuth("USER"),
+  checkAuth(Role.USER),
   validateRequest(createCheckoutSessionValidationSchema),
   paymentController.createCheckoutSession,
 );
