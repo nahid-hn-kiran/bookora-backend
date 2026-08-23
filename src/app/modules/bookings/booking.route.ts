@@ -37,7 +37,7 @@ router.get(
   bookingController.getBookingById,
 );
 
-router.patch(
+router.post(
   "/:bookingId/cancel",
   checkAuth(Role.USER),
   bookingController.cancelBooking,

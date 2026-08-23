@@ -7,3 +7,7 @@ export interface ICreateBooking {
 export interface IUpdateBookingStatus {
   status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
 }
+
+export interface ICancelBookingParams {
+  bookingId: string;
+}

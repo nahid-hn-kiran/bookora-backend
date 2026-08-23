@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { bookingService } from "./booking.service";
 import catchAsync from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
+import status from "http-status";
 
 const createBooking = catchAsync(async (req: Request, res: Response) => {
   const booking = await bookingService.createBooking(req.user.id, req.body);
@@ -52,16 +53,16 @@ const getAllBookings = catchAsync(async (_req: Request, res: Response) => {
 });
 
 const cancelBooking = catchAsync(async (req: Request, res: Response) => {
-  const booking = await bookingService.cancelBooking(
-    req.params.bookingId as string,
+  const result = await bookingService.cancelBooking(
     req.user.id,
+    req.params.bookingId as string,
   );
 
   sendResponse(res, {
-    statusCode: 200,
+    statusCode: status.OK,
     success: true,
     message: "Booking cancelled successfully.",
-    data: booking,
+    data: result,
   });
 });
 

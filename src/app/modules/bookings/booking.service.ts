@@ -3,6 +3,7 @@ import { prisma } from "../../../lib/prisma";
 import AppError from "../../errorHelpers/appError";
 
 import { ICreateBooking, IUpdateBookingStatus } from "./booking.interface";
+import { stripe } from "../../config/stripe";
 
 const generateBookingNumber = () => {
   const date = new Date();
@@ -44,6 +45,8 @@ const createBooking = async (userId: string, payload: ICreateBooking) => {
     },
   });
 
+  console.log(timeSlot?.room.status);
+
   if (!timeSlot) {
     throw new AppError(status.NOT_FOUND, "Time slot not found.");
   }
@@ -76,9 +79,12 @@ const createBooking = async (userId: string, payload: ICreateBooking) => {
     );
   }
 
-  const existingBooking = await prisma.booking.findUnique({
+  const existingBooking = await prisma.booking.findFirst({
     where: {
       timeSlotId: payload.timeSlotId,
+      status: {
+        in: ["PENDING", "CONFIRMED"],
+      },
     },
   });
 
@@ -222,11 +228,14 @@ const getAllBookings = async () => {
   return bookings;
 };
 
-const cancelBooking = async (bookingId: string, userId: string) => {
+const cancelBooking = async (userId: string, bookingId: string) => {
   const booking = await prisma.booking.findFirst({
     where: {
       id: bookingId,
       userId,
+    },
+    include: {
+      payment: true,
     },
   });
 
@@ -241,31 +250,67 @@ const cancelBooking = async (bookingId: string, userId: string) => {
   if (booking.status === "COMPLETED") {
     throw new AppError(
       status.BAD_REQUEST,
-      "A completed booking cannot be cancelled.",
+      "Completed bookings cannot be cancelled.",
     );
+  }
+
+  if (booking.payment && booking.payment.status === "PAID") {
+    if (!booking.payment.paymentIntentId) {
+      throw new AppError(
+        status.INTERNAL_SERVER_ERROR,
+        "Payment intent ID is missing.",
+      );
+    }
+
+    const refund = await stripe.refunds.create({
+      payment_intent: booking.payment.paymentIntentId,
+    });
+
+    if (refund.status !== "succeeded") {
+      throw new AppError(status.BAD_REQUEST, "Payment refund failed.");
+    }
+
+    const result = await prisma.$transaction(async (transaction) => {
+      const updatedPayment = await transaction.payment.update({
+        where: {
+          id: booking.payment!.id,
+        },
+        data: {
+          status: "REFUNDED",
+        },
+      });
+
+      const updatedBooking = await transaction.booking.update({
+        where: {
+          id: booking.id,
+        },
+        data: {
+          status: "CANCELLED",
+        },
+      });
+
+      return {
+        booking: updatedBooking,
+        payment: updatedPayment,
+      };
+    });
+
+    return result;
   }
 
   const updatedBooking = await prisma.booking.update({
     where: {
-      id: bookingId,
+      id: booking.id,
     },
-
     data: {
       status: "CANCELLED",
     },
-
-    include: {
-      timeSlot: {
-        include: {
-          room: true,
-        },
-      },
-
-      payment: true,
-    },
   });
 
-  return updatedBooking;
+  return {
+    booking: updatedBooking,
+    payment: booking.payment,
+  };
 };
 
 const updateBookingStatus = async (

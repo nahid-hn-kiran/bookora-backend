@@ -42,6 +42,14 @@ const handleStripeWebhook = async (req: Request, res: Response) => {
       break;
     }
 
+    case "charge.refunded": {
+      const charge = event.data.object as Stripe.Charge;
+
+      await handleChargeRefunded(charge);
+
+      break;
+    }
+
     default:
       console.log(`Unhandled Stripe event: ${event.type}`);
   }
@@ -145,6 +153,63 @@ const handlePaymentFailed = async (paymentIntent: Stripe.PaymentIntent) => {
     data: {
       status: "FAILED",
     },
+  });
+};
+
+const handleChargeRefunded = async (charge: Stripe.Charge) => {
+  if (!charge.payment_intent) {
+    console.error("PaymentIntent missing from refunded charge.");
+
+    return;
+  }
+
+  const paymentIntentId =
+    typeof charge.payment_intent === "string"
+      ? charge.payment_intent
+      : charge.payment_intent.id;
+
+  await prisma.$transaction(async (transaction) => {
+    const payment = await transaction.payment.findUnique({
+      where: {
+        paymentIntentId,
+      },
+      include: {
+        booking: true,
+      },
+    });
+
+    if (!payment) {
+      console.error(
+        "Payment not found for refunded PaymentIntent:",
+        paymentIntentId,
+      );
+
+      return;
+    }
+
+    if (payment.status === "REFUNDED") {
+      return;
+    }
+
+    await transaction.payment.update({
+      where: {
+        id: payment.id,
+      },
+      data: {
+        status: "REFUNDED",
+      },
+    });
+
+    if (payment.booking.status !== "CANCELLED") {
+      await transaction.booking.update({
+        where: {
+          id: payment.bookingId,
+        },
+        data: {
+          status: "CANCELLED",
+        },
+      });
+    }
   });
 };
 
