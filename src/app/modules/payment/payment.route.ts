@@ -1,0 +1,29 @@
+import { Router } from "express";
+
+import { paymentController } from "./payment.controller";
+
+import {
+  createCheckoutSessionValidationSchema,
+  createPaymentIntentValidationSchema,
+} from "./payment.validation";
+import { checkAuth } from "../../middleware/checkAuth";
+import { validateRequest } from "../../middleware/validateRequest";
+import { Role } from "../../../generated/prisma/enums";
+
+const router = Router();
+
+router.post(
+  "/create-intent",
+  checkAuth(Role.USER),
+  validateRequest(createPaymentIntentValidationSchema),
+  paymentController.createPaymentIntent,
+);
+
+router.post(
+  "/create-checkout-session",
+  checkAuth("USER"),
+  validateRequest(createCheckoutSessionValidationSchema),
+  paymentController.createCheckoutSession,
+);
+
+export const paymentRoutes = router;

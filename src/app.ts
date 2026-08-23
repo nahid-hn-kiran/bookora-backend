@@ -5,11 +5,20 @@ import { auth } from "./lib/auth";
 import { notFound } from "./app/middleware/notFound";
 import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
 import cookieParser from "cookie-parser";
+import { paymentWebhookController } from "./app/modules/payment/payment.webhook";
 
 const app: Application = express();
 
 // Enable URL-encoded form data parsing
 app.use(express.urlencoded({ extended: true }));
+
+app.post(
+  "/api/v1/payments/webhook",
+  express.raw({
+    type: "application/json",
+  }),
+  paymentWebhookController.handleStripeWebhook,
+);
 
 // Middleware to parse JSON bodies
 app.use(express.json());
