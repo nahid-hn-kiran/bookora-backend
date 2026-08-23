@@ -79,22 +79,22 @@ const createBooking = async (userId: string, payload: ICreateBooking) => {
     );
   }
 
-  const existingBooking = await prisma.booking.findFirst({
-    where: {
-      timeSlotId: payload.timeSlotId,
-      status: {
-        in: ["PENDING", "CONFIRMED"],
-      },
-    },
-  });
-
-  if (existingBooking) {
-    throw new AppError(status.CONFLICT, "This time slot is already booked.");
-  }
-
   const totalAmount = timeSlot.room.price;
 
   const booking = await prisma.$transaction(async (transaction) => {
+    const existingBooking = await transaction.booking.findFirst({
+      where: {
+        timeSlotId: payload.timeSlotId,
+        status: {
+          in: ["PENDING", "CONFIRMED"],
+        },
+      },
+    });
+
+    if (existingBooking) {
+      throw new AppError(status.CONFLICT, "This time slot is already booked.");
+    }
+
     const createdBooking = await transaction.booking.create({
       data: {
         bookingNumber: generateBookingNumber(),
