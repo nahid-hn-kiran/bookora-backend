@@ -322,6 +322,10 @@ const updateBookingStatus = async (
     where: {
       id: bookingId,
     },
+
+    include: {
+      payment: true,
+    },
   });
 
   if (!booking) {
@@ -342,6 +346,75 @@ const updateBookingStatus = async (
       status.BAD_REQUEST,
       `Cannot change booking status from ${booking.status} to ${payload.status}.`,
     );
+  }
+
+  if (payload.status === "CANCELLED") {
+    if (booking.payment?.status === "PAID") {
+      if (!booking.payment.paymentIntentId) {
+        throw new AppError(
+          status.INTERNAL_SERVER_ERROR,
+          "Payment intent ID is missing.",
+        );
+      }
+
+      const refund = await stripe.refunds.create({
+        payment_intent: booking.payment.paymentIntentId,
+      });
+
+      if (refund.status !== "succeeded") {
+        throw new AppError(
+          status.BAD_REQUEST,
+          "Payment refund failed. Booking was not cancelled.",
+        );
+      }
+
+      const result = await prisma.$transaction(async (transaction) => {
+        const updatedPayment = await transaction.payment.update({
+          where: {
+            id: booking.payment!.id,
+          },
+
+          data: {
+            status: "REFUNDED",
+          },
+        });
+
+        const updatedBooking = await transaction.booking.update({
+          where: {
+            id: booking.id,
+          },
+
+          data: {
+            status: "CANCELLED",
+          },
+
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+
+            timeSlot: {
+              include: {
+                room: true,
+              },
+            },
+
+            payment: true,
+          },
+        });
+
+        return {
+          booking: updatedBooking,
+          payment: updatedPayment,
+        };
+      });
+
+      return result;
+    }
   }
 
   const updatedBooking = await prisma.booking.update({
