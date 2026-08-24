@@ -79,6 +79,8 @@ const createTimeSlot = async (payload: ICreateTimeSlot) => {
 };
 
 const getAllTimeSlots = async (query: { roomId?: string; date?: string }) => {
+  const now = new Date();
+
   const timeSlots = await prisma.timeSlot.findMany({
     where: {
       ...(query.roomId && {
@@ -88,10 +90,29 @@ const getAllTimeSlots = async (query: { roomId?: string; date?: string }) => {
       ...(query.date && {
         date: new Date(query.date),
       }),
+
+      room: {
+        isDeleted: false,
+        status: "ACTIVE",
+      },
     },
 
     include: {
       room: true,
+
+      bookings: {
+        where: {
+          status: {
+            in: ["PENDING", "CONFIRMED"],
+          },
+        },
+
+        select: {
+          id: true,
+          status: true,
+          expiresAt: true,
+        },
+      },
     },
 
     orderBy: {
@@ -99,7 +120,33 @@ const getAllTimeSlots = async (query: { roomId?: string; date?: string }) => {
     },
   });
 
-  return timeSlots;
+  return timeSlots.map((timeSlot) => {
+    const activeBooking = timeSlot.bookings.find((booking) => {
+      if (booking.status === "CONFIRMED") {
+        return true;
+      }
+
+      if (
+        booking.status === "PENDING" &&
+        booking.expiresAt &&
+        booking.expiresAt > now
+      ) {
+        return true;
+      }
+
+      return false;
+    });
+
+    const isAvailable = timeSlot.startTime > now && !activeBooking;
+
+    return {
+      ...timeSlot,
+
+      isAvailable,
+
+      bookings: undefined,
+    };
+  });
 };
 
 const getTimeSlotById = async (timeSlotId: string) => {
@@ -110,7 +157,20 @@ const getTimeSlotById = async (timeSlotId: string) => {
 
     include: {
       room: true,
-      bookings: true,
+
+      bookings: {
+        where: {
+          status: {
+            in: ["PENDING", "CONFIRMED"],
+          },
+        },
+
+        select: {
+          id: true,
+          status: true,
+          expiresAt: true,
+        },
+      },
     },
   });
 
@@ -118,7 +178,31 @@ const getTimeSlotById = async (timeSlotId: string) => {
     throw new AppError(status.NOT_FOUND, "Time slot not found.");
   }
 
-  return timeSlot;
+  const now = new Date();
+
+  const activeBooking = timeSlot.bookings.find((booking) => {
+    if (booking.status === "CONFIRMED") {
+      return true;
+    }
+
+    if (
+      booking.status === "PENDING" &&
+      booking.expiresAt &&
+      booking.expiresAt > now
+    ) {
+      return true;
+    }
+
+    return false;
+  });
+
+  const isAvailable = timeSlot.startTime > now && !activeBooking;
+
+  return {
+    ...timeSlot,
+    isAvailable,
+    bookings: undefined,
+  };
 };
 
 const updateTimeSlot = async (timeSlotId: string, payload: IUpdateTimeSlot) => {
