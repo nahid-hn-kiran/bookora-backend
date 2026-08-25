@@ -1,5 +1,5 @@
 import status from "http-status";
-import { UserStatus } from "../../../generated/prisma/enums";
+import { Role, UserStatus } from "../../../generated/prisma/enums";
 import {
   IGetUsersQuery,
   IUpdateAdminPayload,
@@ -17,7 +17,7 @@ const getAllUsers = async (query: IGetUsersQuery) => {
 
   const andConditions: Prisma.UserWhereInput[] = [
     {
-      role: "USER",
+      role: Role.USER,
       isDeleted: false,
     },
   ];
@@ -62,7 +62,7 @@ const getAllUsers = async (query: IGetUsersQuery) => {
         id: true,
         name: true,
         email: true,
-        profilePhoto: true,
+        photo: true,
         status: true,
         role: true,
         isDeleted: true,
@@ -96,7 +96,7 @@ const getUserById = async (id: string) => {
   const user = await prisma.user.findFirst({
     where: {
       id,
-      role: "USER",
+      role: Role.USER,
       isDeleted: false,
     },
 
@@ -104,8 +104,7 @@ const getUserById = async (id: string) => {
       id: true,
       name: true,
       email: true,
-      profilePhoto: true,
-      contactNumber: true,
+      photo: true,
       status: true,
       role: true,
       isDeleted: true,
@@ -141,7 +140,7 @@ const updateUser = async (id: string, payload: IUpdateUserPayload) => {
 
     data: {
       name: payload.name,
-      profilePhoto: payload.profilePhoto,
+      photo: payload.profilePhoto,
       status: payload.status,
     },
 
@@ -186,6 +185,16 @@ const deleteUser = async (id: string) => {
         deletedAt: new Date(),
         status: UserStatus.DELETED,
       },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        photo: true,
+        status: true,
+        role: true,
+        isDeleted: true,
+        deletedAt: true,
+      },
     });
 
     await tx.session.deleteMany({
@@ -208,44 +217,93 @@ const deleteUser = async (id: string) => {
 
 const getAllAdmins = async () => {
   const admins = await prisma.admin.findMany({
-    include: {
-      user: true,
+    where: {
+      isDeleted: false,
+    },
+
+    select: {
+      id: true,
+      contactNumber: true,
+      createdAt: true,
+      updatedAt: true,
+
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          photo: true,
+          role: true,
+          status: true,
+          isDeleted: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
+    },
+
+    orderBy: {
+      createdAt: "desc",
     },
   });
+
   return admins;
 };
 
 const getAdminById = async (id: string) => {
-  const admin = await prisma.admin.findUnique({
+  const admin = await prisma.admin.findFirst({
     where: {
       id,
+      isDeleted: false,
     },
-    include: {
-      user: true,
+
+    select: {
+      id: true,
+      contactNumber: true,
+      createdAt: true,
+      updatedAt: true,
+
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          photo: true,
+          role: true,
+          status: true,
+          isDeleted: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
     },
   });
+
+  if (!admin) {
+    throw new AppError(status.NOT_FOUND, "Admin or Super Admin not found.");
+  }
+
   return admin;
 };
 
 const updateAdmin = async (id: string, payload: IUpdateAdminPayload) => {
-  const isAdminExist = await prisma.admin.findUnique({
+  const existingAdmin = await prisma.admin.findFirst({
     where: {
       id,
+      isDeleted: false,
     },
   });
 
-  if (!isAdminExist) {
-    throw new AppError(status.NOT_FOUND, "Admin Or Super Admin not found");
+  if (!existingAdmin) {
+    throw new AppError(status.NOT_FOUND, "Admin or Super Admin not found.");
   }
-
-  const { admin } = payload;
 
   const updatedAdmin = await prisma.admin.update({
     where: {
       id,
     },
     data: {
-      ...admin,
+      ...payload.admin,
     },
   });
 
@@ -263,8 +321,8 @@ const deleteAdmin = async (id: string, user: IRequestUser) => {
     throw new AppError(status.NOT_FOUND, "Admin Or Super Admin not found");
   }
 
-  if (isAdminExist.id === user.id) {
-    throw new AppError(status.BAD_REQUEST, "You cannot delete yourself");
+  if (isAdminExist.userId === user.id) {
+    throw new AppError(status.BAD_REQUEST, "You cannot delete yourself.");
   }
 
   const result = await prisma.$transaction(async (tx) => {
