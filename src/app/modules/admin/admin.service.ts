@@ -124,7 +124,7 @@ const updateUser = async (id: string, payload: IUpdateUserPayload) => {
   const existingUser = await prisma.user.findFirst({
     where: {
       id,
-      role: "USER",
+      role: Role.USER,
       isDeleted: false,
     },
   });
@@ -148,8 +148,7 @@ const updateUser = async (id: string, payload: IUpdateUserPayload) => {
       id: true,
       name: true,
       email: true,
-      profilePhoto: true,
-      contactNumber: true,
+      photo: true,
       status: true,
       role: true,
       isDeleted: true,
@@ -165,7 +164,7 @@ const deleteUser = async (id: string) => {
   const existingUser = await prisma.user.findFirst({
     where: {
       id,
-      role: "USER",
+      role: Role.USER,
       isDeleted: false,
     },
   });
@@ -298,62 +297,119 @@ const updateAdmin = async (id: string, payload: IUpdateAdminPayload) => {
     throw new AppError(status.NOT_FOUND, "Admin or Super Admin not found.");
   }
 
-  const updatedAdmin = await prisma.admin.update({
-    where: {
-      id,
-    },
-    data: {
-      ...payload.admin,
-    },
+  const result = await prisma.$transaction(async (tx) => {
+    if (payload.admin) {
+      await tx.admin.update({
+        where: {
+          id,
+        },
+        data: {
+          contactNumber: payload.admin.contactNumber,
+        },
+      });
+
+      await tx.user.update({
+        where: {
+          id: existingAdmin.userId,
+        },
+        data: {
+          name: payload.admin.name,
+          photo: payload.admin.profilePhoto,
+        },
+      });
+    }
+
+    return tx.admin.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+        contactNumber: true,
+        createdAt: true,
+        updatedAt: true,
+
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            photo: true,
+            role: true,
+            status: true,
+            isDeleted: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
   });
 
-  return updatedAdmin;
+  return result;
 };
 
 const deleteAdmin = async (id: string, user: IRequestUser) => {
-  const isAdminExist = await prisma.admin.findUnique({
+  const existingAdmin = await prisma.admin.findFirst({
     where: {
       id,
+      isDeleted: false,
     },
   });
 
-  if (!isAdminExist) {
-    throw new AppError(status.NOT_FOUND, "Admin Or Super Admin not found");
+  if (!existingAdmin) {
+    throw new AppError(status.NOT_FOUND, "Admin or Super Admin not found.");
   }
 
-  if (isAdminExist.userId === user.id) {
+  if (existingAdmin.userId === user.id) {
     throw new AppError(status.BAD_REQUEST, "You cannot delete yourself.");
   }
 
   const result = await prisma.$transaction(async (tx) => {
     await tx.admin.update({
-      where: { id },
+      where: {
+        id,
+      },
       data: {
         isDeleted: true,
         deletedAt: new Date(),
       },
     });
 
-    await tx.user.update({
-      where: { id: isAdminExist.userId },
+    const deletedUser = await tx.user.update({
+      where: {
+        id: existingAdmin.userId,
+      },
       data: {
         isDeleted: true,
         deletedAt: new Date(),
         status: UserStatus.DELETED,
       },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        photo: true,
+        role: true,
+        status: true,
+        isDeleted: true,
+        deletedAt: true,
+      },
     });
 
     await tx.session.deleteMany({
-      where: { userId: isAdminExist.userId },
+      where: {
+        userId: existingAdmin.userId,
+      },
     });
 
     await tx.account.deleteMany({
-      where: { userId: isAdminExist.userId },
+      where: {
+        userId: existingAdmin.userId,
+      },
     });
 
-    const admin = await getAdminById(id);
-
-    return admin;
+    return deletedUser;
   });
 
   return result;
