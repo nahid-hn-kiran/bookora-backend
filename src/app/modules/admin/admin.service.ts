@@ -11,9 +11,9 @@ import { IRequestUser } from "../../interfaces/requestUser";
 import { Prisma } from "../../../generated/prisma/client";
 
 const getAllUsers = async (query: IGetUsersQuery) => {
-  const page = query.page ?? 1;
-  const limit = query.limit ?? 10;
-  const skip = (page - 1) * limit;
+  const page = Number(query.page ?? 1);
+  const limit = Number(query.limit ?? 10);
+  const skip = Number((page - 1) * limit);
 
   const andConditions: Prisma.UserWhereInput[] = [
     {
@@ -62,7 +62,7 @@ const getAllUsers = async (query: IGetUsersQuery) => {
         id: true,
         name: true,
         email: true,
-        photo: true,
+        image: true,
         status: true,
         role: true,
         isDeleted: true,
@@ -104,7 +104,7 @@ const getUserById = async (id: string) => {
       id: true,
       name: true,
       email: true,
-      photo: true,
+      image: true,
       status: true,
       role: true,
       isDeleted: true,
@@ -140,7 +140,7 @@ const updateUser = async (id: string, payload: IUpdateUserPayload) => {
 
     data: {
       name: payload.name,
-      photo: payload.profilePhoto,
+      image: payload.profilePhoto,
       status: payload.status,
     },
 
@@ -148,7 +148,7 @@ const updateUser = async (id: string, payload: IUpdateUserPayload) => {
       id: true,
       name: true,
       email: true,
-      photo: true,
+      image: true,
       status: true,
       role: true,
       isDeleted: true,
@@ -188,7 +188,7 @@ const deleteUser = async (id: string) => {
         id: true,
         name: true,
         email: true,
-        photo: true,
+        image: true,
         status: true,
         role: true,
         isDeleted: true,
@@ -231,7 +231,7 @@ const getAllAdmins = async () => {
           id: true,
           name: true,
           email: true,
-          photo: true,
+          image: true,
           role: true,
           status: true,
           isDeleted: true,
@@ -267,7 +267,7 @@ const getAdminById = async (id: string) => {
           id: true,
           name: true,
           email: true,
-          photo: true,
+          image: true,
           role: true,
           status: true,
           isDeleted: true,
@@ -314,7 +314,7 @@ const updateAdmin = async (id: string, payload: IUpdateAdminPayload) => {
         },
         data: {
           name: payload.admin.name,
-          photo: payload.admin.profilePhoto,
+          image: payload.admin.profilePhoto,
         },
       });
     }
@@ -334,7 +334,7 @@ const updateAdmin = async (id: string, payload: IUpdateAdminPayload) => {
             id: true,
             name: true,
             email: true,
-            photo: true,
+            image: true,
             role: true,
             status: true,
             isDeleted: true,
@@ -389,7 +389,7 @@ const deleteAdmin = async (id: string, user: IRequestUser) => {
         id: true,
         name: true,
         email: true,
-        photo: true,
+        image: true,
         role: true,
         status: true,
         isDeleted: true,

@@ -3,11 +3,7 @@ import { Role } from "../../../generated/prisma/enums";
 import { checkAuth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
 import { AdminController } from "./admin.controller";
-import {
-  getUsersQueryValidationSchema,
-  updateAdminZodSchema,
-  updateUserZodSchema,
-} from "./admin.validation";
+import { updateAdminZodSchema, updateUserZodSchema } from "./admin.validation";
 
 const router = Router();
 
@@ -15,7 +11,6 @@ const router = Router();
 router.get(
   "/users",
   checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
-  validateRequest(getUsersQueryValidationSchema),
   AdminController.getAllUsers,
 );
 
