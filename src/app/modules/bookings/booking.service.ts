@@ -2,8 +2,13 @@ import status from "http-status";
 import { prisma } from "../../../lib/prisma";
 import AppError from "../../errorHelpers/appError";
 
-import { ICreateBooking, IUpdateBookingStatus } from "./booking.interface";
+import {
+  ICreateBooking,
+  IGetBookingsQuery,
+  IUpdateBookingStatus,
+} from "./booking.interface";
 import { stripe } from "../../config/stripe";
+import { Prisma } from "../../../generated/prisma/client";
 
 const generateBookingNumber = () => {
   const date = new Date();
@@ -226,36 +231,114 @@ const getBookingByIdAdmin = async (bookingId: string) => {
   return booking;
 };
 
-const getAllBookings = async () => {
-  const bookings = await prisma.booking.findMany({
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
+const getAllBookings = async (query: IGetBookingsQuery) => {
+  const page = query.page ?? 1;
+  const limit = query.limit ?? 10;
+  const skip = (page - 1) * limit;
 
-      timeSlot: {
-        include: {
-          room: {
-            include: {
-              venue: true,
+  const andConditions: Prisma.BookingWhereInput[] = [];
+
+  if (query.status) {
+    andConditions.push({
+      status: query.status,
+    });
+  }
+
+  if (query.search) {
+    andConditions.push({
+      OR: [
+        {
+          bookingNumber: {
+            contains: query.search,
+            mode: "insensitive",
+          },
+        },
+        {
+          user: {
+            name: {
+              contains: query.search,
+              mode: "insensitive",
             },
           },
         },
+        {
+          user: {
+            email: {
+              contains: query.search,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          timeSlot: {
+            room: {
+              name: {
+                contains: query.search,
+                mode: "insensitive",
+              },
+            },
+          },
+        },
+      ],
+    });
+  }
+
+  const where: Prisma.BookingWhereInput =
+    andConditions.length > 0
+      ? {
+          AND: andConditions,
+        }
+      : {};
+
+  const [bookings, total] = await Promise.all([
+    prisma.booking.findMany({
+      where,
+
+      skip,
+      take: limit,
+
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+
+        timeSlot: {
+          include: {
+            room: {
+              include: {
+                venue: true,
+              },
+            },
+          },
+        },
+
+        payment: true,
       },
 
-      payment: true,
-    },
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
 
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+    prisma.booking.count({
+      where,
+    }),
+  ]);
 
-  return bookings;
+  return {
+    data: bookings,
+
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+  };
 };
 
 const cancelBooking = async (userId: string, bookingId: string) => {

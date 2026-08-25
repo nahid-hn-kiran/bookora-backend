@@ -11,3 +11,10 @@ export interface IUpdateBookingStatus {
 export interface ICancelBookingParams {
   bookingId: string;
 }
+
+export interface IGetBookingsQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+}

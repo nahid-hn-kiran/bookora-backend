@@ -4,6 +4,7 @@ import { bookingController } from "./booking.controller";
 
 import {
   createBookingValidationSchema,
+  getBookingsQueryValidationSchema,
   updateBookingStatusValidationSchema,
 } from "./booking.validation";
 import { checkAuth } from "../../middleware/checkAuth";
@@ -28,9 +29,9 @@ router.get(
 router.get(
   "/",
   checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  validateRequest(getBookingsQueryValidationSchema),
   bookingController.getAllBookings,
 );
-
 router.get(
   "/:bookingId",
   checkAuth(Role.USER),

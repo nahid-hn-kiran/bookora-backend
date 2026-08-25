@@ -54,15 +54,15 @@ const getBookingByIdAdmin = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getAllBookings = catchAsync(async (_req: Request, res: Response) => {
-  console.log("Hello");
-  const bookings = await bookingService.getAllBookings();
+const getAllBookings = catchAsync(async (req: Request, res: Response) => {
+  const result = await bookingService.getAllBookings(req.query);
 
   sendResponse(res, {
     statusCode: 200,
     success: true,
     message: "Bookings retrieved successfully.",
-    data: bookings,
+    data: result.data,
+    meta: result.meta,
   });
 });
 
