@@ -246,6 +246,8 @@ const getAllAdmins = async () => {
     },
   });
 
+  console.log(admins);
+
   return admins;
 };
 

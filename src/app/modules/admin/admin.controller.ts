@@ -56,6 +56,7 @@ const deleteUser = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllAdmins = catchAsync(async (req: Request, res: Response) => {
+  console.log(req.user);
   const result = await AdminService.getAllAdmins();
 
   sendResponse(res, {
