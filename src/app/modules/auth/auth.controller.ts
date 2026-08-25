@@ -163,7 +163,7 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getMyProfile = catchAsync(async (req: Request, res: Response) => {
-  const result = await authService.getMyProfile(req.user.userId);
+  const result = await authService.getMyProfile(req.user.id);
 
   sendResponse(res, {
     statusCode: 201,

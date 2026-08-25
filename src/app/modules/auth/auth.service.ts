@@ -309,7 +309,7 @@ const udpateMyProfile = async (
 ) => {
   const userExists = await prisma.user.findUnique({
     where: {
-      id: user.userId,
+      id: user.id,
     },
     include: {
       admin: true,
@@ -329,7 +329,7 @@ const udpateMyProfile = async (
   const result = await prisma.$transaction(async (tx) => {
     const updatedUser = await tx.user.update({
       where: {
-        id: user.userId,
+        id: user.id,
       },
       data: {
         ...(payload.name !== undefined && {

@@ -28,6 +28,33 @@ const getUserById = catchAsync(async (req: Request, res: Response) => {
     data: user,
   });
 });
+
+const updateUser = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const result = await AdminService.updateUser(id as string, req.body);
+
+  sendResponse(res, {
+    statusCode: status.OK,
+    success: true,
+    message: "User updated successfully",
+    data: result,
+  });
+});
+
+const deleteUser = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const result = await AdminService.deleteUser(id as string);
+
+  sendResponse(res, {
+    statusCode: status.OK,
+    success: true,
+    message: "User deleted successfully",
+    data: result,
+  });
+});
+
 const getAllAdmins = catchAsync(async (req: Request, res: Response) => {
   const result = await AdminService.getAllAdmins();
 
@@ -83,6 +110,8 @@ const deleteAdmin = catchAsync(async (req: Request, res: Response) => {
 export const AdminController = {
   getAllUsers,
   getUserById,
+  updateUser,
+  deleteUser,
   getAllAdmins,
   updateAdmin,
   deleteAdmin,

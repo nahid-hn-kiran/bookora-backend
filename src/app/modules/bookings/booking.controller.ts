@@ -41,7 +41,21 @@ const getBookingById = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getBookingByIdAdmin = catchAsync(async (req: Request, res: Response) => {
+  const booking = await bookingService.getBookingByIdAdmin(
+    req.params.bookingId as string,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Booking retrieved successfully.",
+    data: booking,
+  });
+});
+
 const getAllBookings = catchAsync(async (_req: Request, res: Response) => {
+  console.log("Hello");
   const bookings = await bookingService.getAllBookings();
 
   sendResponse(res, {
@@ -84,6 +98,7 @@ export const bookingController = {
   createBooking,
   getMyBookings,
   getBookingById,
+  getBookingByIdAdmin,
   getAllBookings,
   cancelBooking,
   updateBookingStatus,

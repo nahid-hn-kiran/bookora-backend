@@ -27,7 +27,7 @@ router.get(
 
 router.get(
   "/",
-  checkAuth("ADMIN", "SUPER_ADMIN"),
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
   bookingController.getAllBookings,
 );
 
@@ -35,6 +35,12 @@ router.get(
   "/:bookingId",
   checkAuth(Role.USER),
   bookingController.getBookingById,
+);
+
+router.get(
+  "/admin/:bookingId",
+  checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+  bookingController.getBookingByIdAdmin,
 );
 
 router.post(

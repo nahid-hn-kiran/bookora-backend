@@ -18,6 +18,7 @@ export interface IUpdateVenue {
   phone?: string;
   email?: string;
   image?: string;
+  status?: "ACTIVE" | "INACTIVE";
 }
 
 export interface IVenueQuery {

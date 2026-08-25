@@ -197,6 +197,35 @@ const getBookingById = async (bookingId: string, userId: string) => {
   return booking;
 };
 
+const getBookingByIdAdmin = async (bookingId: string) => {
+  const booking = await prisma.booking.findFirst({
+    where: {
+      id: bookingId,
+    },
+
+    include: {
+      timeSlot: {
+        include: {
+          room: {
+            include: {
+              venue: true,
+            },
+          },
+        },
+      },
+
+      payment: true,
+      user: true,
+    },
+  });
+
+  if (!booking) {
+    throw new AppError(status.NOT_FOUND, "Booking not found.");
+  }
+
+  return booking;
+};
+
 const getAllBookings = async () => {
   const bookings = await prisma.booking.findMany({
     include: {
@@ -452,6 +481,7 @@ export const bookingService = {
   createBooking,
   getMyBookings,
   getBookingById,
+  getBookingByIdAdmin,
   getAllBookings,
   cancelBooking,
   updateBookingStatus,
