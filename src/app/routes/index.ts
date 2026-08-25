@@ -6,6 +6,7 @@ import { roomRoutes } from "../modules/rooms/room.route";
 import { timeSlotRoutes } from "../modules/time-slots/timeSlot.route";
 import { bookingRoutes } from "../modules/bookings/booking.route";
 import { paymentRoutes } from "../modules/payment/payment.route";
+import { AdminDashboardRoutes } from "../modules/dashboard/admin.dashboard.route";
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use("/rooms", roomRoutes);
 router.use("/time-slots", timeSlotRoutes);
 router.use("/bookings", bookingRoutes);
 router.use("/payments", paymentRoutes);
+router.use("/admin/dashboard", AdminDashboardRoutes);
 
 export const indexRoutes = router;
