@@ -9,7 +9,6 @@ export interface IUpdateAdminPayload {
 export interface IUpdateUserPayload {
   name?: string;
   profilePhoto?: string;
-  contactNumber?: string;
   status?: "ACTIVE" | "BLOCKED" | "DELETED";
 }
 

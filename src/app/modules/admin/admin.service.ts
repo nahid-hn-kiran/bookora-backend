@@ -142,7 +142,6 @@ const updateUser = async (id: string, payload: IUpdateUserPayload) => {
     data: {
       name: payload.name,
       profilePhoto: payload.profilePhoto,
-      contactNumber: payload.contactNumber,
       status: payload.status,
     },
 
