@@ -5,14 +5,14 @@ import { AdminService } from "./admin.service";
 import catchAsync from "../../shared/catchAsync";
 
 const getAllUsers = catchAsync(async (req: Request, res: Response) => {
-  const result = await AdminService.getAllUsers();
-  console.log(result);
+  const result = await AdminService.getAllUsers(req.query);
 
   sendResponse(res, {
     statusCode: status.OK,
     success: true,
     message: "Users fetched successfully",
-    data: result,
+    data: result.data,
+    meta: result.meta,
   });
 });
 

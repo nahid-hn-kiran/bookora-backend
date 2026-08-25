@@ -12,3 +12,10 @@ export interface IUpdateUserPayload {
   contactNumber?: string;
   status?: "ACTIVE" | "BLOCKED" | "DELETED";
 }
+
+export interface IGetUsersQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: "ACTIVE" | "BLOCKED" | "DELETED";
+}
