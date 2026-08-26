@@ -14,14 +14,14 @@ const router = Router();
 
 router.post(
   "/",
-  checkAuth(Role.USER),
+  checkAuth(Role.USER, Role.ADMIN, Role.SUPER_ADMIN),
   validateRequest(createBookingValidationSchema),
   bookingController.createBooking,
 );
 
 router.get(
   "/my-bookings",
-  checkAuth(Role.USER),
+  checkAuth(Role.USER, Role.ADMIN, Role.SUPER_ADMIN),
   bookingController.getMyBookings,
 );
 
@@ -32,7 +32,7 @@ router.get(
 );
 router.get(
   "/:bookingId",
-  checkAuth(Role.USER),
+  checkAuth(Role.USER, Role.ADMIN, Role.SUPER_ADMIN),
   bookingController.getBookingById,
 );
 
@@ -44,7 +44,7 @@ router.get(
 
 router.post(
   "/:bookingId/cancel",
-  checkAuth(Role.USER),
+  checkAuth(Role.USER, Role.ADMIN, Role.SUPER_ADMIN),
   bookingController.cancelBooking,
 );
 
