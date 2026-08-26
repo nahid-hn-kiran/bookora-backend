@@ -3,6 +3,7 @@ import { authController } from "./auth.controller";
 import { validateRequest } from "../../middleware/validateRequest";
 import {
   forgotPasswordSchema,
+  updateMyProfileZodSchema,
   userLoginZodSchema,
   userRegisterZodSchema,
 } from "./auth.validation";
@@ -31,6 +32,7 @@ router.get(
 router.patch(
   "/update-my-profile",
   checkAuth(Role.USER, Role.ADMIN, Role.SUPER_ADMIN),
+  validateRequest(updateMyProfileZodSchema),
   authController.updateMyProfile,
 );
 
