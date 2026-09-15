@@ -1,24 +1,13 @@
 import { defineConfig } from "tsup";
 
-export default defineConfig([
-  {
-    entry: { server: "src/server.ts" },
-    outDir: "dist",
-    format: ["esm"],
-    platform: "node",
-    target: "es2023",
-    bundle: true,
-    splitting: false,
-    skipNodeModulesBundle: true,
-  },
-  {
-    entry: { index: "api/index.ts" },
-    outDir: "api",
-    format: ["esm"],
-    platform: "node",
-    target: "es2023",
-    bundle: true,
-    splitting: false,
-    skipNodeModulesBundle: true,
-  },
-]);
+export default defineConfig({
+  entry: ["src/app.ts", "src/server.ts"],
+  format: ["esm"],
+  platform: "node",
+  target: "es2023",
+  outDir: "dist",
+  clean: true,
+  bundle: true,
+  splitting: false,
+  skipNodeModulesBundle: true,
+});
