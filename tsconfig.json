@@ -9,8 +9,8 @@
     "forceConsistentCasingInFileNames": true,
     "target": "ES2023",
     "esModuleInterop": true,
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "5.0"
   },
   "include": ["src", "src/app/modules/task/task.interface.ts"],
-  "exclude": ["node_modules", "dist", "generated/prisma"]
+  "exclude": ["node_modules", "dist", "generated/prisma", "src/seed/seed.ts"]
 }
