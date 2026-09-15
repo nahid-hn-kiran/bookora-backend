@@ -1,0 +1,232 @@
+import { prisma } from "../../../lib/prisma";
+import { stripe } from "../../config/stripe";
+import { envVars } from "../../config/env";
+const handleStripeWebhook = async (req, res) => {
+    const signature = req.headers["stripe-signature"];
+    let event;
+    try {
+        event = stripe.webhooks.constructEvent(req.body, signature, envVars.STRIPE_WEBHOOK_SECRET);
+    }
+    catch (error) {
+        console.error("Stripe webhook signature verification failed:", error);
+        return res.status(400).json({
+            success: false,
+            message: "Invalid Stripe webhook signature.",
+        });
+    }
+    switch (event.type) {
+        case "payment_intent.succeeded": {
+            const paymentIntent = event.data.object;
+            await handlePaymentSucceeded(paymentIntent);
+            break;
+        }
+        case "payment_intent.payment_failed": {
+            const paymentIntent = event.data.object;
+            await handlePaymentFailed(paymentIntent);
+            break;
+        }
+        case "charge.refunded": {
+            const charge = event.data.object;
+            await handleChargeRefunded(charge);
+            break;
+        }
+        default:
+            console.log(`Unhandled Stripe event: ${event.type}`);
+    }
+    return res.status(200).json({
+        received: true,
+    });
+};
+const handlePaymentSucceeded = async (paymentIntent) => {
+    const bookingId = paymentIntent.metadata.bookingId;
+    if (!bookingId) {
+        console.error("Booking ID missing from PaymentIntent metadata.");
+        return;
+    }
+    const booking = await prisma.booking.findUnique({
+        where: {
+            id: bookingId,
+        },
+    });
+    if (!booking) {
+        console.error("Booking not found:", bookingId);
+        return;
+    }
+    if (booking.status !== "PENDING") {
+        console.log(`Ignoring successful payment for booking ${booking.id} because its status is ${booking.status}.`);
+        return;
+    }
+    if (booking.expiresAt && booking.expiresAt <= new Date()) {
+        console.log(`Booking ${booking.id} has expired. Refunding successful payment.`);
+        try {
+            await stripe.refunds.create({
+                payment_intent: paymentIntent.id,
+            });
+        }
+        catch (error) {
+            console.error(`Failed to refund payment for expired booking ${booking.id}:`, error);
+            return;
+        }
+        await prisma.$transaction(async (transaction) => {
+            const currentBooking = await transaction.booking.findUnique({
+                where: {
+                    id: booking.id,
+                },
+            });
+            if (!currentBooking || currentBooking.status !== "PENDING") {
+                return;
+            }
+            const existingPayment = await transaction.payment.findUnique({
+                where: {
+                    paymentIntentId: paymentIntent.id,
+                },
+            });
+            if (existingPayment) {
+                await transaction.payment.update({
+                    where: {
+                        id: existingPayment.id,
+                    },
+                    data: {
+                        status: "REFUNDED",
+                    },
+                });
+            }
+            else {
+                await transaction.payment.create({
+                    data: {
+                        bookingId: booking.id,
+                        amount: booking.totalAmount,
+                        method: "STRIPE",
+                        status: "REFUNDED",
+                        paymentIntentId: paymentIntent.id,
+                        paidAt: new Date(),
+                    },
+                });
+            }
+            await transaction.booking.update({
+                where: {
+                    id: booking.id,
+                },
+                data: {
+                    status: "CANCELLED",
+                },
+            });
+        });
+        return;
+    }
+    await prisma.$transaction(async (transaction) => {
+        const currentBooking = await transaction.booking.findUnique({
+            where: {
+                id: booking.id,
+            },
+        });
+        if (!currentBooking || currentBooking.status !== "PENDING") {
+            return;
+        }
+        const existingPayment = await transaction.payment.findUnique({
+            where: {
+                paymentIntentId: paymentIntent.id,
+            },
+        });
+        if (existingPayment) {
+            if (existingPayment.status === "PAID") {
+                return;
+            }
+            await transaction.payment.update({
+                where: {
+                    id: existingPayment.id,
+                },
+                data: {
+                    status: "PAID",
+                    paidAt: new Date(),
+                    paymentIntentId: paymentIntent.id,
+                },
+            });
+        }
+        else {
+            await transaction.payment.create({
+                data: {
+                    bookingId: currentBooking.id,
+                    amount: currentBooking.totalAmount,
+                    method: "STRIPE",
+                    status: "PAID",
+                    paymentIntentId: paymentIntent.id,
+                    paidAt: new Date(),
+                },
+            });
+        }
+        await transaction.booking.update({
+            where: {
+                id: currentBooking.id,
+            },
+            data: {
+                status: "CONFIRMED",
+            },
+        });
+    });
+};
+const handlePaymentFailed = async (paymentIntent) => {
+    const payment = await prisma.payment.findUnique({
+        where: {
+            paymentIntentId: paymentIntent.id,
+        },
+    });
+    if (!payment) {
+        return;
+    }
+    await prisma.payment.update({
+        where: {
+            id: payment.id,
+        },
+        data: {
+            status: "FAILED",
+        },
+    });
+};
+const handleChargeRefunded = async (charge) => {
+    if (!charge.payment_intent) {
+        console.error("PaymentIntent missing from refunded charge.");
+        return;
+    }
+    const paymentIntentId = typeof charge.payment_intent === "string"
+        ? charge.payment_intent
+        : charge.payment_intent.id;
+    await prisma.$transaction(async (transaction) => {
+        const payment = await transaction.payment.findUnique({
+            where: {
+                paymentIntentId,
+            },
+            include: {
+                booking: true,
+            },
+        });
+        if (!payment) {
+            console.error("Payment not found for refunded PaymentIntent:", paymentIntentId);
+            return;
+        }
+        if (payment.status === "REFUNDED") {
+            return;
+        }
+        await transaction.payment.update({
+            where: {
+                id: payment.id,
+            },
+            data: {
+                status: "REFUNDED",
+            },
+        });
+        if (payment.booking.status !== "CANCELLED") {
+            await transaction.booking.update({
+                where: {
+                    id: payment.bookingId,
+                },
+                data: {
+                    status: "CANCELLED",
+                },
+            });
+        }
+    });
+};
+export const paymentWebhookController = {
+    handleStripeWebhook,
+};

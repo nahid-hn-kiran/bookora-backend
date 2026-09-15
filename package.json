@@ -7,6 +7,7 @@
     "start": "node dist/server.js",
     "build": "tsc -p .",
     "dev": "npx tsx watch src/server.ts",
+    "seed:demo": "npx tsx src/seed/demo-data.ts",
     "lint": "npx eslint ./src/**/*",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
