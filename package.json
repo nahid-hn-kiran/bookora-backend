@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node dist/server.js",
-    "build": "tsup src/server.ts --format esm --platform node --out-dir dist",
+    "build": "prisma generate && tsup",
     "dev": "npx tsx watch src/server.ts",
     "seed:demo": "npx tsx src/seed/demo-data.ts",
     "lint": "npx eslint ./src/**/*",
