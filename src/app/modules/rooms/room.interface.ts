@@ -1,4 +1,4 @@
-import { RoomStatus } from "../../../generated/prisma/enums";
+import { RoomStatus } from "../../../../generated/prisma/enums";
 
 export interface ICreateRoom {
   name: string;

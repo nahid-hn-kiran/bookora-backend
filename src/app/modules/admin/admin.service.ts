@@ -1,5 +1,5 @@
 import status from "http-status";
-import { Role, UserStatus } from "../../../generated/prisma/enums";
+import { Role, UserStatus } from "../../../../generated/prisma/enums";
 import {
   IGetUsersQuery,
   IUpdateAdminPayload,
@@ -8,7 +8,7 @@ import {
 import { prisma } from "../../../lib/prisma";
 import AppError from "../../errorHelpers/appError";
 import { IRequestUser } from "../../interfaces/requestUser";
-import { Prisma } from "../../../generated/prisma/client";
+import { Prisma } from "../../../../generated/prisma/client";
 
 const getAllUsers = async (query: IGetUsersQuery) => {
   const page = Number(query.page ?? 1);

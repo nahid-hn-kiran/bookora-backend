@@ -3,7 +3,7 @@ import { checkAuth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
 import { venueController } from "./venue.controller";
 import { venueValidation } from "./vanue.validation";
-import { Role } from "../../../generated/prisma/enums";
+import { Role } from "../../../../generated/prisma/enums";
 
 const router = Router();
 

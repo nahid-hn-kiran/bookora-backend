@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { RoomStatus } from "../../../generated/prisma/enums";
+import { RoomStatus } from "../../../../generated/prisma/enums";
 
 export const createRoomValidationSchema = z.object({
   name: z.string().min(2, "Room name must be at least 2 characters long"),

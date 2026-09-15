@@ -8,7 +8,7 @@ import {
   IUpdateBookingStatus,
 } from "./booking.interface";
 import { stripe } from "../../config/stripe";
-import { Prisma } from "../../../generated/prisma/client";
+import { Prisma } from "../../../../generated/prisma/client";
 
 const generateBookingNumber = () => {
   const date = new Date();

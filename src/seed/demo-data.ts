@@ -6,7 +6,7 @@ import {
   RoomStatus,
   UserStatus,
   VenueStatus,
-} from "../generated/prisma/enums";
+} from "../../generated/prisma/enums";
 import { prisma } from "../lib/prisma";
 
 const demoIds = {

@@ -1,5 +1,5 @@
 import status from "http-status";
-import { Prisma } from "../../../generated/prisma/client";
+import { Prisma } from "../../../../generated/prisma/client";
 import { prisma } from "../../../lib/prisma";
 import AppError from "../../errorHelpers/appError";
 import { ICreateVenue, IUpdateVenue, IVenueQuery } from "./venue.interface";

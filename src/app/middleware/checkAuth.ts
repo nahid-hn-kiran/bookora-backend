@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { Role, UserStatus } from "../../generated/prisma/enums";
+import { Role, UserStatus } from "../../../generated/prisma/enums";
 import { cookieUtils } from "../utils/cookie";
 import { jwtUtils } from "../utils/jwt";
 import { envVars } from "../config/env";

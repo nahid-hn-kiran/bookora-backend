@@ -11,7 +11,7 @@ import { jwtUtils } from "../../utils/jwt";
 import { envVars } from "../../config/env";
 import z from "zod";
 import { userLoginZodSchema, userRegisterZodSchema } from "./auth.validation";
-import { UserStatus } from "../../../generated/prisma/enums";
+import { UserStatus } from "../../../../generated/prisma/enums";
 import { IRequestUser } from "../../interfaces/requestUser";
 
 const registerUser = async (payload: z.infer<typeof userRegisterZodSchema>) => {
