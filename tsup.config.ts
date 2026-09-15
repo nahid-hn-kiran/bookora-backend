@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/app.ts", "src/server.ts"],
+  entry: ["src/server.ts"],
   format: ["esm"],
   platform: "node",
   target: "es2023",
