@@ -9,5 +9,5 @@ export default defineConfig({
   clean: true,
   bundle: true,
   skipNodeModulesBundle: true,
-  dts: false,
+  dts: true,
 });
