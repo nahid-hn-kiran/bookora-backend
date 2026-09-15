@@ -1,3 +1,67 @@
+// src/app/config/env.ts
+import dotenv from "dotenv";
+dotenv.config();
+var loadEnvVars = () => {
+  const requiredEnvVars = [
+    "NODE_ENV",
+    "PORT",
+    "DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "ACCESS_TOKEN_SECRET",
+    "REFRESH_TOKEN_SECRET",
+    "ACCESS_TOKEN_EXPIRES_IN",
+    "REFRESH_TOKEN_EXPIRES_IN",
+    "BETTER_AUTH_SESSION_TOKEN_EXPIRES_IN",
+    "BETTER_AUTH_SESSION_TOKEN_UPDATE_AGE",
+    "EMAIL_SENDER_SMTP_USER",
+    "EMAIL_SENDER_SMTP_PASS",
+    "EMAIL_SENDER_SMTP_HOST",
+    "EMAIL_SENDER_SMTP_PORT",
+    "EMAIL_SENDER_SMTP_FROM",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_CALLBACK_URL",
+    "FRONTEND_URL",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET"
+  ];
+  requiredEnvVars.forEach((varName) => {
+    if (!process.env[varName]) {
+      throw new Error(`Missing required environment variable: ${varName}`);
+    }
+  });
+  return {
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: parseInt(process.env.PORT, 10),
+    DATABASE_URL: process.env.DATABASE_URL,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+    ACCESS_TOKEN_SECRET: process.env.ACCESS_TOKEN_SECRET,
+    REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET,
+    ACCESS_TOKEN_EXPIRES_IN: process.env.ACCESS_TOKEN_EXPIRES_IN,
+    REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN,
+    BETTER_AUTH_SESSION_TOKEN_EXPIRES_IN: process.env.BETTER_AUTH_SESSION_TOKEN_EXPIRES_IN,
+    BETTER_AUTH_SESSION_TOKEN_UPDATE_AGE: process.env.BETTER_AUTH_SESSION_TOKEN_UPDATE_AGE,
+    email: {
+      EMAIL_SENDER_SMTP_USER: process.env.EMAIL_SENDER_SMTP_USER,
+      EMAIL_SENDER_SMTP_PASS: process.env.EMAIL_SENDER_SMTP_PASS,
+      EMAIL_SENDER_SMTP_HOST: process.env.EMAIL_SENDER_SMTP_HOST,
+      EMAIL_SENDER_SMTP_PORT: process.env.EMAIL_SENDER_SMTP_PORT,
+      EMAIL_SENDER_SMTP_FROM: process.env.EMAIL_SENDER_SMTP_FROM
+    },
+    google: {
+      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+      GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL,
+      FRONTEND_URL: process.env.FRONTEND_URL
+    },
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET
+  };
+};
+var envVars = loadEnvVars();
+
 // src/app.ts
 import express from "express";
 
@@ -110,70 +174,6 @@ var RoomStatus = {
 // src/generated/prisma/client.ts
 globalThis["__dirname"] = path.dirname(fileURLToPath(import.meta.url));
 var PrismaClient = getPrismaClientClass();
-
-// src/app/config/env.ts
-import dotenv from "dotenv";
-dotenv.config();
-var loadEnvVars = () => {
-  const requiredEnvVars = [
-    "NODE_ENV",
-    "PORT",
-    "DATABASE_URL",
-    "BETTER_AUTH_SECRET",
-    "BETTER_AUTH_URL",
-    "ACCESS_TOKEN_SECRET",
-    "REFRESH_TOKEN_SECRET",
-    "ACCESS_TOKEN_EXPIRES_IN",
-    "REFRESH_TOKEN_EXPIRES_IN",
-    "BETTER_AUTH_SESSION_TOKEN_EXPIRES_IN",
-    "BETTER_AUTH_SESSION_TOKEN_UPDATE_AGE",
-    "EMAIL_SENDER_SMTP_USER",
-    "EMAIL_SENDER_SMTP_PASS",
-    "EMAIL_SENDER_SMTP_HOST",
-    "EMAIL_SENDER_SMTP_PORT",
-    "EMAIL_SENDER_SMTP_FROM",
-    "GOOGLE_CLIENT_ID",
-    "GOOGLE_CLIENT_SECRET",
-    "GOOGLE_CALLBACK_URL",
-    "FRONTEND_URL",
-    "STRIPE_SECRET_KEY",
-    "STRIPE_WEBHOOK_SECRET"
-  ];
-  requiredEnvVars.forEach((varName) => {
-    if (!process.env[varName]) {
-      throw new Error(`Missing required environment variable: ${varName}`);
-    }
-  });
-  return {
-    NODE_ENV: process.env.NODE_ENV,
-    PORT: parseInt(process.env.PORT, 10),
-    DATABASE_URL: process.env.DATABASE_URL,
-    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
-    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
-    ACCESS_TOKEN_SECRET: process.env.ACCESS_TOKEN_SECRET,
-    REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET,
-    ACCESS_TOKEN_EXPIRES_IN: process.env.ACCESS_TOKEN_EXPIRES_IN,
-    REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN,
-    BETTER_AUTH_SESSION_TOKEN_EXPIRES_IN: process.env.BETTER_AUTH_SESSION_TOKEN_EXPIRES_IN,
-    BETTER_AUTH_SESSION_TOKEN_UPDATE_AGE: process.env.BETTER_AUTH_SESSION_TOKEN_UPDATE_AGE,
-    email: {
-      EMAIL_SENDER_SMTP_USER: process.env.EMAIL_SENDER_SMTP_USER,
-      EMAIL_SENDER_SMTP_PASS: process.env.EMAIL_SENDER_SMTP_PASS,
-      EMAIL_SENDER_SMTP_HOST: process.env.EMAIL_SENDER_SMTP_HOST,
-      EMAIL_SENDER_SMTP_PORT: process.env.EMAIL_SENDER_SMTP_PORT,
-      EMAIL_SENDER_SMTP_FROM: process.env.EMAIL_SENDER_SMTP_FROM
-    },
-    google: {
-      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-      GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL,
-      FRONTEND_URL: process.env.FRONTEND_URL
-    },
-    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET
-  };
-};
-var envVars = loadEnvVars();
 
 // src/lib/prisma.ts
 var connectionString = `${envVars.DATABASE_URL}`;
@@ -3857,160 +3857,9 @@ app.use(notFound);
 app.use(globalErrorHandler);
 var app_default = app;
 
-// src/app/modules/bookings/booking.expiry.ts
-var expirePendingBookings = async () => {
-  const now = /* @__PURE__ */ new Date();
-  const expiredBookings = await prisma.booking.findMany({
-    where: {
-      status: "PENDING",
-      expiresAt: {
-        lte: now
-      }
-    },
-    include: {
-      payment: true
-    }
-  });
-  if (expiredBookings.length === 0) {
-    return;
-  }
-  for (const booking of expiredBookings) {
-    try {
-      if (booking.payment?.paymentIntentId) {
-        try {
-          const paymentIntent = await stripe.paymentIntents.retrieve(
-            booking.payment.paymentIntentId
-          );
-          if (paymentIntent.status === "requires_payment_method" || paymentIntent.status === "requires_confirmation" || paymentIntent.status === "requires_action") {
-            await stripe.paymentIntents.cancel(paymentIntent.id);
-          }
-        } catch (error) {
-          console.error(
-            `Failed to cancel PaymentIntent for booking ${booking.id}:`,
-            error
-          );
-        }
-      }
-      if (booking.payment?.checkoutSessionId) {
-        try {
-          const session = await stripe.checkout.sessions.retrieve(
-            booking.payment.checkoutSessionId
-          );
-          if (session.status === "open") {
-            await stripe.checkout.sessions.expire(session.id);
-          }
-        } catch (error) {
-          console.error(
-            `Failed to expire Checkout Session for booking ${booking.id}:`,
-            error
-          );
-        }
-      }
-      await prisma.$transaction(async (transaction) => {
-        const currentBooking = await transaction.booking.findUnique({
-          where: {
-            id: booking.id
-          }
-        });
-        if (!currentBooking || currentBooking.status !== "PENDING") {
-          return;
-        }
-        await transaction.booking.update({
-          where: {
-            id: booking.id
-          },
-          data: {
-            status: "CANCELLED"
-          }
-        });
-        if (booking.payment) {
-          await transaction.payment.update({
-            where: {
-              id: booking.payment.id
-            },
-            data: {
-              status: "FAILED"
-            }
-          });
-        }
-      });
-      console.log(`Booking expired: ${booking.bookingNumber}`);
-    } catch (error) {
-      console.error(
-        `Failed to expire booking ${booking.bookingNumber}:`,
-        error
-      );
-    }
-  }
+export {
+  envVars,
+  prisma,
+  stripe,
+  app_default
 };
-var bookingExpiryService = {
-  expirePendingBookings
-};
-
-// src/app/modules/bookings/booking.expiry.scheduler.ts
-var startBookingExpiryScheduler = () => {
-  bookingExpiryService.expirePendingBookings().catch((error) => {
-    console.error("Initial booking expiry check failed:", error);
-  });
-  setInterval(async () => {
-    try {
-      await bookingExpiryService.expirePendingBookings();
-    } catch (error) {
-      console.error("Booking expiry scheduler failed:", error);
-    }
-  }, 60 * 1e3);
-  console.log("Booking expiry scheduler started.");
-};
-var booking_expiry_scheduler_default = startBookingExpiryScheduler;
-
-// src/server.ts
-var server;
-var bootstrap = async () => {
-  try {
-    server = app_default.listen(envVars.PORT, () => {
-      console.log(`Server is running on http://localhost:${envVars.PORT}`);
-      booking_expiry_scheduler_default();
-    });
-  } catch (error) {
-    console.error("Failed to start server:", error);
-  }
-};
-process.on("SIGTERM", () => {
-  console.log("SIGTERM signal received. Shutting down server...");
-  if (server) {
-    server.close(() => {
-      console.log("Server closed gracefully.");
-      process.exit(1);
-    });
-  }
-  process.exit(1);
-});
-process.on("SIGINT", () => {
-  console.log("SIGINT signal received. Shutting down server...");
-  if (server) {
-    server.close(() => {
-      console.log("Server closed gracefully.");
-      process.exit(1);
-    });
-  }
-  process.exit(1);
-});
-process.on("uncaughtException", (error) => {
-  console.log("Uncaught Exception Detected... Shutting down server", error);
-  if (server) {
-    server.close(() => {
-      process.exit(1);
-    });
-  }
-  process.exit(1);
-});
-process.on("unhandledRejection", (error) => {
-  console.log("Unhandled Rejection Detected... Shutting down server", error);
-  if (server) {
-    server.close(() => {
-      process.exit(1);
-    });
-  }
-  process.exit(1);
-});
-bootstrap();
