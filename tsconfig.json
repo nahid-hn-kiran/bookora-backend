@@ -12,5 +12,5 @@
     "ignoreDeprecations": "5.0"
   },
   "include": ["src", "src/app/modules/task/task.interface.ts"],
-  "exclude": ["node_modules", "dist", "generated/prisma", "src/seed/seed.ts"]
+  "exclude": ["node_modules", "dist", "src/seed/seed.ts"]
 }
