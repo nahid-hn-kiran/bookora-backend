@@ -4,9 +4,12 @@ Backend API for Bookora, an escape room booking and management platform.
 
 ## Production
 
-**Backend API:** https://bookora-api-rea1.onrender.com/
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-black?logo=vercel)](https://bookora-frontend-gold.vercel.app)
 
-The backend is deployed on Render.
+**Live Application:** https://bookora-frontend-gold.vercel.app  
+**Backend API:** https://bookora-backend-delta.vercel.app  
+**Backend API Base:** https://bookora-backend-delta.vercel.app/api/v1  
+**Cron Keep-Alive & Booking Expiry:** [https://bookora-backend-delta.vercel.app/api/v1/cron/expire-bookings](https://bookora-backend-delta.vercel.app/api/v1/cron/expire-bookings)
 
 ## Overview
 
@@ -24,7 +27,7 @@ The Bookora backend provides the server-side application layer for authenticatio
 - Stripe
 - Nodemailer
 - Docker
-- Render
+- Vercel
 
 ## Core Features
 
@@ -144,11 +147,7 @@ Run the development server:
 npm run dev
 ```
 
-Default local server:
-
-```text
-http://localhost:5000
-```
+When running locally, the API listens on the configured `PORT`.
 
 ## Production Build
 
@@ -160,6 +159,8 @@ npm run build
 
 The backend can run as a single Vercel serverless function.
 
+- Production API base: `https://bookora-backend-delta.vercel.app/api/v1`.
+- Set `FRONTEND_URL` to `https://bookora-frontend-gold.vercel.app` in the backend's Vercel project.
 - `api/index.js` is the function entry. It imports the bundled Express app from `dist/app.js`, which `npm run build` produces.
 - `vercel.json` rewrites every path to that function and bundles the email templates in `src/app/templates`.
 - `PORT` is not needed on Vercel. All other environment variables must be set in the Vercel project.
@@ -168,7 +169,7 @@ The backend can run as a single Vercel serverless function.
 The in-process booking expiry scheduler does not run on Vercel. Expired bookings are released by:
 
 ```text
-GET /api/v1/cron/expire-bookings
+GET https://bookora-backend-delta.vercel.app/api/v1/cron/expire-bookings
 ```
 
 The secret is passed as `?secret=<CRON_SECRET>` or as an `Authorization: Bearer <CRON_SECRET>` header. `vercel.json` schedules this once a day, which is the limit on the Hobby plan. For more frequent runs, call the route from an external scheduler.
