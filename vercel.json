@@ -1,0 +1,19 @@
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ],
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "src/app/templates/**"
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/v1/cron/expire-bookings",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

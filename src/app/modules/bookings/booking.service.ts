@@ -9,6 +9,8 @@ import {
 } from "./booking.interface";
 import { stripe } from "../../config/stripe";
 import { Prisma } from "../../../../generated/prisma/client";
+import { bookingExpiryService } from "./booking.expiry";
+import { paymentUtils } from "../payment/payment.utils";
 
 const generateBookingNumber = () => {
   const date = new Date();
@@ -86,8 +88,14 @@ const createBooking = async (userId: string, payload: ICreateBooking) => {
 
   const totalAmount = timeSlot.room.price;
 
-  const booking = await prisma.$transaction(async (transaction) => {
-    const existingBooking = await transaction.booking.findFirst({
+  /*
+   * An expired PENDING booking still holds the time slot until it is
+   * cancelled, so release it here instead of waiting for the scheduler.
+   */
+  await bookingExpiryService.expirePendingBookings(payload.timeSlotId);
+
+  const findActiveBooking = (client: Prisma.TransactionClient) => {
+    return client.booking.findFirst({
       where: {
         timeSlotId: payload.timeSlotId,
         status: {
@@ -95,54 +103,76 @@ const createBooking = async (userId: string, payload: ICreateBooking) => {
         },
       },
     });
+  };
 
-    if (existingBooking) {
-      throw new AppError(status.CONFLICT, "This time slot is already booked.");
-    }
+  try {
+    return await prisma.$transaction(async (transaction) => {
+      const existingBooking = await findActiveBooking(transaction);
 
-    const createdBooking = await transaction.booking.create({
-      data: {
-        bookingNumber: generateBookingNumber(),
+      if (existingBooking) {
+        throw new AppError(
+          status.CONFLICT,
+          "This time slot is already booked.",
+        );
+      }
 
-        userId,
+      const createdBooking = await transaction.booking.create({
+        data: {
+          bookingNumber: generateBookingNumber(),
 
-        timeSlotId: timeSlot.id,
+          userId,
 
-        guestCount: payload.guestCount,
+          timeSlotId: timeSlot.id,
 
-        totalAmount,
+          guestCount: payload.guestCount,
 
-        status: "PENDING",
+          totalAmount,
 
-        notes: payload.notes,
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
-      },
+          status: "PENDING",
 
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+          notes: payload.notes,
+          expiresAt: new Date(Date.now() + 15 * 60 * 1000),
         },
 
-        timeSlot: {
-          include: {
-            room: {
-              include: {
-                venue: true,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+
+          timeSlot: {
+            include: {
+              room: {
+                include: {
+                  venue: true,
+                },
               },
             },
           },
         },
-      },
+      });
+
+      return createdBooking;
     });
+  } catch (error) {
+    /*
+     * Two requests can pass the check above at the same time. The
+     * database only lets one of them through, and the other fails on
+     * the active-booking unique index.
+     */
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002" &&
+      (await findActiveBooking(prisma))
+    ) {
+      throw new AppError(status.CONFLICT, "This time slot is already booked.");
+    }
 
-    return createdBooking;
-  });
-
-  return booking;
+    throw error;
+  }
 };
 
 const getMyBookings = async (userId: string) => {
@@ -379,7 +409,7 @@ const cancelBooking = async (userId: string, bookingId: string) => {
       payment_intent: booking.payment.paymentIntentId,
     });
 
-    if (refund.status !== "succeeded") {
+    if (paymentUtils.isRefundFailed(refund.status)) {
       throw new AppError(status.BAD_REQUEST, "Payment refund failed.");
     }
 
@@ -410,6 +440,8 @@ const cancelBooking = async (userId: string, bookingId: string) => {
 
     return result;
   }
+
+  await paymentUtils.releaseStripePayment(booking.id, booking.payment);
 
   const updatedBooking = await prisma.booking.update({
     where: {
@@ -473,7 +505,7 @@ const updateBookingStatus = async (
         payment_intent: booking.payment.paymentIntentId,
       });
 
-      if (refund.status !== "succeeded") {
+      if (paymentUtils.isRefundFailed(refund.status)) {
         throw new AppError(
           status.BAD_REQUEST,
           "Payment refund failed. Booking was not cancelled.",
@@ -527,6 +559,8 @@ const updateBookingStatus = async (
 
       return result;
     }
+
+    await paymentUtils.releaseStripePayment(booking.id, booking.payment);
   }
 
   const updatedBooking = await prisma.booking.update({

@@ -203,7 +203,7 @@ const changePassword = async (
   });
 
   const accessToken = tokenUtils.getAccessToken({
-    userId: session.user.id,
+    id: session.user.id,
     role: session.user.role,
     name: session.user.name,
     email: session.user.email,
@@ -213,7 +213,7 @@ const changePassword = async (
   });
 
   const refreshToken = tokenUtils.getRefreshToken({
-    userId: session.user.id,
+    id: session.user.id,
     role: session.user.role,
     name: session.user.name,
     email: session.user.email,

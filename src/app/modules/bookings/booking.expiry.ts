@@ -1,12 +1,16 @@
 import { prisma } from "../../../lib/prisma";
-import { stripe } from "../../config/stripe";
+import { paymentUtils } from "../payment/payment.utils";
 
-const expirePendingBookings = async () => {
+const expirePendingBookings = async (timeSlotId?: string) => {
   const now = new Date();
 
   const expiredBookings = await prisma.booking.findMany({
     where: {
       status: "PENDING",
+
+      ...(timeSlotId && {
+        timeSlotId,
+      }),
 
       expiresAt: {
         lte: now,
@@ -24,43 +28,7 @@ const expirePendingBookings = async () => {
 
   for (const booking of expiredBookings) {
     try {
-      if (booking.payment?.paymentIntentId) {
-        try {
-          const paymentIntent = await stripe.paymentIntents.retrieve(
-            booking.payment.paymentIntentId,
-          );
-
-          if (
-            paymentIntent.status === "requires_payment_method" ||
-            paymentIntent.status === "requires_confirmation" ||
-            paymentIntent.status === "requires_action"
-          ) {
-            await stripe.paymentIntents.cancel(paymentIntent.id);
-          }
-        } catch (error) {
-          console.error(
-            `Failed to cancel PaymentIntent for booking ${booking.id}:`,
-            error,
-          );
-        }
-      }
-
-      if (booking.payment?.checkoutSessionId) {
-        try {
-          const session = await stripe.checkout.sessions.retrieve(
-            booking.payment.checkoutSessionId,
-          );
-
-          if (session.status === "open") {
-            await stripe.checkout.sessions.expire(session.id);
-          }
-        } catch (error) {
-          console.error(
-            `Failed to expire Checkout Session for booking ${booking.id}:`,
-            error,
-          );
-        }
-      }
+      await paymentUtils.releaseStripePayment(booking.id, booking.payment);
 
       await prisma.$transaction(async (transaction) => {
         const currentBooking = await transaction.booking.findUnique({

@@ -2,10 +2,11 @@
   "name": "Bookora — Escape Room Booking & Management Platform",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",
     "build": "prisma generate && tsup",
+    "postinstall": "prisma generate",
     "dev": "npx tsx watch src/server.ts",
     "seed:demo": "npx tsx src/seed/demo-data.ts",
     "lint": "npx eslint ./src/**/*",

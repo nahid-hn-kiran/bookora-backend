@@ -55,7 +55,7 @@ export const auth = betterAuth({
             },
           });
           if (user) {
-            sendEmail({
+            await sendEmail({
               to: email,
               subject: "Password reset otp",
               templateName: "otp",

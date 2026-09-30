@@ -51,11 +51,25 @@ The Bookora backend provides the server-side application layer for authenticatio
 - Booking expiry scheduler
 - Transaction-based booking operations
 
+Booking rules:
+
+- A new booking is `PENDING` and holds its time slot for 15 minutes. If it is not paid in that time it expires and is cancelled.
+- Expired bookings are released by the scheduler every minute, and also on demand when someone tries to book the same time slot.
+- Only one `PENDING` or `CONFIRMED` booking can exist per time slot. A second simultaneous request gets `409 Conflict`.
+- Cancelling an unpaid booking also cancels its Stripe PaymentIntent and expires its Checkout Session, so it can no longer be paid.
+- Cancelling a paid booking refunds the payment first. A refund that Stripe reports as `pending` counts as accepted.
+
 ### Payments
 
 - Stripe payment integration
 - Stripe webhook handling
 - Payment-related booking state updates
+
+Payment rules:
+
+- A booking can be paid through a PaymentIntent or a Checkout Session. Both are confirmed by the `payment_intent.succeeded` webhook, which marks the payment `PAID` and the booking `CONFIRMED`.
+- A payment that succeeds for an expired or cancelled booking is refunded automatically and recorded as `REFUNDED`.
+- The Stripe webhook endpoint is `POST /api/v1/payments/webhook` and needs the `payment_intent.succeeded`, `payment_intent.payment_failed` and `charge.refunded` events.
 
 ### Administration
 
@@ -141,6 +155,25 @@ http://localhost:5000
 ```bash
 npm run build
 ```
+
+## Vercel Deployment
+
+The backend can run as a single Vercel serverless function.
+
+- `api/index.js` is the function entry. It imports the bundled Express app from `dist/app.js`, which `npm run build` produces.
+- `vercel.json` rewrites every path to that function and bundles the email templates in `src/app/templates`.
+- `PORT` is not needed on Vercel. All other environment variables must be set in the Vercel project.
+- Set `CRON_SECRET` to a long random value. The expiry route rejects every call while it is unset.
+
+The in-process booking expiry scheduler does not run on Vercel. Expired bookings are released by:
+
+```text
+GET /api/v1/cron/expire-bookings
+```
+
+The secret is passed as `?secret=<CRON_SECRET>` or as an `Authorization: Bearer <CRON_SECRET>` header. `vercel.json` schedules this once a day, which is the limit on the Hobby plan. For more frequent runs, call the route from an external scheduler.
+
+After deploying, point the Stripe webhook at `https://<your-domain>/api/v1/payments/webhook` and update `STRIPE_WEBHOOK_SECRET`.
 
 ## Environment Variables
 

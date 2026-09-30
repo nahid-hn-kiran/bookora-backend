@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { prisma } from "../../../lib/prisma";
 import { stripe } from "../../config/stripe";
 import { envVars } from "../../config/env";
+import { Booking } from "../../../../generated/prisma/client";
 
 const handleStripeWebhook = async (req: Request, res: Response) => {
   const signature = req.headers["stripe-signature"] as string;
@@ -80,6 +81,30 @@ const handlePaymentSucceeded = async (paymentIntent: Stripe.PaymentIntent) => {
     return;
   }
 
+  /*
+   * The customer paid for a booking that was cancelled before the
+   * payment went through, so the money has to be returned.
+   */
+  if (booking.status === "CANCELLED") {
+    const existingPayment = await prisma.payment.findUnique({
+      where: {
+        bookingId: booking.id,
+      },
+    });
+
+    if (existingPayment?.status === "REFUNDED") {
+      return;
+    }
+
+    console.log(
+      `Booking ${booking.id} is cancelled. Refunding successful payment.`,
+    );
+
+    await refundPayment(booking, paymentIntent);
+
+    return;
+  }
+
   if (booking.status !== "PENDING") {
     console.log(
       `Ignoring successful payment for booking ${booking.id} because its status is ${booking.status}.`,
@@ -93,74 +118,7 @@ const handlePaymentSucceeded = async (paymentIntent: Stripe.PaymentIntent) => {
       `Booking ${booking.id} has expired. Refunding successful payment.`,
     );
 
-    try {
-      await stripe.refunds.create({
-        payment_intent: paymentIntent.id,
-      });
-    } catch (error) {
-      console.error(
-        `Failed to refund payment for expired booking ${booking.id}:`,
-        error,
-      );
-
-      return;
-    }
-
-    await prisma.$transaction(async (transaction) => {
-      const currentBooking = await transaction.booking.findUnique({
-        where: {
-          id: booking.id,
-        },
-      });
-
-      if (!currentBooking || currentBooking.status !== "PENDING") {
-        return;
-      }
-
-      const existingPayment = await transaction.payment.findUnique({
-        where: {
-          paymentIntentId: paymentIntent.id,
-        },
-      });
-
-      if (existingPayment) {
-        await transaction.payment.update({
-          where: {
-            id: existingPayment.id,
-          },
-
-          data: {
-            status: "REFUNDED",
-          },
-        });
-      } else {
-        await transaction.payment.create({
-          data: {
-            bookingId: booking.id,
-
-            amount: booking.totalAmount,
-
-            method: "STRIPE",
-
-            status: "REFUNDED",
-
-            paymentIntentId: paymentIntent.id,
-
-            paidAt: new Date(),
-          },
-        });
-      }
-
-      await transaction.booking.update({
-        where: {
-          id: booking.id,
-        },
-
-        data: {
-          status: "CANCELLED",
-        },
-      });
-    });
+    await refundPayment(booking, paymentIntent);
 
     return;
   }
@@ -176,9 +134,13 @@ const handlePaymentSucceeded = async (paymentIntent: Stripe.PaymentIntent) => {
       return;
     }
 
+    /*
+     * A Payment created by a Checkout Session has no paymentIntentId
+     * yet, so look it up by booking instead.
+     */
     const existingPayment = await transaction.payment.findUnique({
       where: {
-        paymentIntentId: paymentIntent.id,
+        bookingId: currentBooking.id,
       },
     });
 
@@ -225,6 +187,73 @@ const handlePaymentSucceeded = async (paymentIntent: Stripe.PaymentIntent) => {
 
       data: {
         status: "CONFIRMED",
+      },
+    });
+  });
+};
+
+const refundPayment = async (
+  booking: Booking,
+  paymentIntent: Stripe.PaymentIntent,
+) => {
+  try {
+    await stripe.refunds.create({
+      payment_intent: paymentIntent.id,
+    });
+  } catch (error) {
+    console.error(
+      `Failed to refund payment for booking ${booking.id}:`,
+      error,
+    );
+
+    return;
+  }
+
+  await prisma.$transaction(async (transaction) => {
+    const existingPayment = await transaction.payment.findUnique({
+      where: {
+        bookingId: booking.id,
+      },
+    });
+
+    if (existingPayment) {
+      await transaction.payment.update({
+        where: {
+          id: existingPayment.id,
+        },
+
+        data: {
+          status: "REFUNDED",
+
+          paymentIntentId: paymentIntent.id,
+        },
+      });
+    } else {
+      await transaction.payment.create({
+        data: {
+          bookingId: booking.id,
+
+          amount: booking.totalAmount,
+
+          method: "STRIPE",
+
+          status: "REFUNDED",
+
+          paymentIntentId: paymentIntent.id,
+
+          paidAt: new Date(),
+        },
+      });
+    }
+
+    await transaction.booking.updateMany({
+      where: {
+        id: booking.id,
+        status: "PENDING",
+      },
+
+      data: {
+        status: "CANCELLED",
       },
     });
   });

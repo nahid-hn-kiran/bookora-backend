@@ -8,7 +8,12 @@ const bootstrap = async () => {
   try {
     server = app.listen(envVars.PORT, () => {
       console.log(`Server is running on http://localhost:${envVars.PORT}`);
-      startBookingExpiryScheduler();
+
+      // On Vercel there is no long-running process, so expiry is
+      // triggered through the /cron/expire-bookings route instead.
+      if (process.env.VERCEL !== "1") {
+        startBookingExpiryScheduler();
+      }
     });
   } catch (error) {
     console.error("Failed to start server:", error);
