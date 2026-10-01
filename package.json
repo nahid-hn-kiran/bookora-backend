@@ -4,10 +4,10 @@
   "description": "",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev": "tsx watch src/server.ts",
+    "build": "tsup --config tsup.config.ts",
+    "start": "node dist/server.js",
+    "lint": "eslint src"
   },
   "keywords": [],
   "author": "",
@@ -40,6 +40,7 @@
     "@types/nodemailer": "^8.0.1",
     "eslint": "^10.8.1",
     "prisma": "^7.9.1",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.67.0"
   }

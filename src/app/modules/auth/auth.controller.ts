@@ -6,6 +6,7 @@ import status from "http-status";
 import { tokenUtils } from "../../utils/token";
 import AppError from "../../errorHelpers/appError";
 import { cookieUtils } from "../../utils/cookie";
+import { envVars } from "../../config/env";
 
 const registerUser = catchAsync(async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
@@ -94,18 +95,18 @@ const logoutUser = catchAsync(async (req: Request, res: Response) => {
 
   cookieUtils.clearCookie(res, "accessToken", {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: envVars.NODE_ENV === "production",
+    sameSite: envVars.NODE_ENV === "production" ? "none" : "lax",
   });
   cookieUtils.clearCookie(res, "refreshToken", {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: envVars.NODE_ENV === "production",
+    sameSite: envVars.NODE_ENV === "production" ? "none" : "lax",
   });
   cookieUtils.clearCookie(res, "better-auth.session_token", {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: envVars.NODE_ENV === "production",
+    sameSite: envVars.NODE_ENV === "production" ? "none" : "lax",
   });
 
   sendResponse(res, {
